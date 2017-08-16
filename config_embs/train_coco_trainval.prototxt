@@ -1,0 +1,330 @@
+name: "logpolar_embs_coco"
+layer {
+  name: "data"
+  type: "TwoImageData"
+  top: "data"
+  top: "label"
+  image_data_param {
+    root_folder: "/opt/home/aharley/datasets/MSCOCO"
+    source: "segaware/list/coco_trainval.txt"
+    batch_size: 20
+    shuffle: true
+  }
+  two_image_data_param {
+    first_is_color: true
+    second_is_color: false
+  }
+  transform_param {
+    mean_value: 104.008
+    mean_value: 116.669
+    mean_value: 122.675
+    crop_size: 161
+    mirror: true
+  }
+  include: { phase: TRAIN }
+}
+# rgb for emb
+layer { 
+  bottom: "data"
+  name: "rgb_emb"
+  top: "rgb_emb"
+  type: "Power"
+  power_param {
+    scale: 0.0039215 # 1/255
+  }
+}
+# Embedding layers
+layer {
+  bottom: "data"
+  top: "conv1_1"
+  name: "conv1_1"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 64
+    kernel_size: 3 pad: 1
+    stride: 1
+    weight_filler { type: "xavier" }
+    bias_filler { type: "constant" }
+  }
+}
+layer {
+  bottom: "conv1_1"
+  top: "conv1_1"
+  name: "relu1_1"
+  type: "ReLU"
+}
+layer {
+  bottom: "conv1_1"
+  top: "conv1_2"
+  name: "conv1_2"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 64
+    kernel_size: 3 pad: 1
+    weight_filler { type: "xavier" }
+    bias_filler { type: "constant" }
+  }
+}
+layer {
+  bottom: "conv1_2"
+  top: "conv1_2"
+  name: "relu1_2"
+  type: "ReLU"
+}
+layer {
+  bottom: "conv1_2"
+  top: "pool1"
+  name: "pool1"
+  type: "Pooling"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3 pad: 1
+    stride: 2
+  }
+}
+layer {
+  bottom: "pool1"
+  top: "conv2_1"
+  name: "conv2_1"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 128
+    kernel_size: 3 pad: 1
+    weight_filler { type: "xavier" }
+    bias_filler { type: "constant" }
+  }
+}
+layer {
+  bottom: "conv2_1"
+  top: "conv2_1"
+  name: "relu2_1"
+  type: "ReLU"
+}
+layer {
+  bottom: "conv2_1"
+  top: "conv2_2"
+  name: "conv2_2"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 128
+    kernel_size: 3 pad: 1
+    weight_filler { type: "xavier" }
+    bias_filler { type: "constant" }
+  }
+}
+layer {
+  bottom: "conv2_2"
+  top: "conv2_2"
+  name: "relu2_2"
+  type: "ReLU"
+}
+layer {
+  bottom: "conv2_2"
+  top: "pool2"
+  name: "pool2"
+  type: "Pooling"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3 pad: 1
+    stride: 2
+  }
+}
+layer {
+  bottom: "pool2"
+  top: "conv3_1"
+  name: "conv3_1"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 256
+    kernel_size: 3 pad: 1
+    weight_filler { type: "xavier" }
+    bias_filler { type: "constant" }
+  }
+}
+layer {
+  bottom: "conv3_1"
+  top: "conv3_1"
+  name: "relu3_1"
+  type: "ReLU"
+}
+# resize, for uniformity
+layer {
+  type: "Interp"
+  bottom: "conv2_1"
+  name: "conv21_resized"
+  top: "conv21_resized"
+  interp_param {
+    height: 161
+    width: 161
+  }
+}
+layer {
+  type: "Interp"
+  bottom: "conv2_2"
+  name: "conv22_resized"
+  top: "conv22_resized"
+  interp_param {
+    height: 161
+    width: 161
+  }
+}
+layer {
+  type: "Interp"
+  bottom: "conv3_1"
+  name: "conv31_resized"
+  top: "conv31_resized"
+  interp_param {
+    height: 161
+    width: 161
+  }
+}
+# Concat, and weight
+layer {
+  bottom: "rgb_emb"
+  bottom: "conv1_1"
+  bottom: "conv1_2"
+  bottom: "conv21_resized"
+  bottom: "conv22_resized"
+  bottom: "conv31_resized"
+  top: "fused"
+  name: "fused"
+  type: "Concat"
+}
+layer {
+  bottom: "fused"
+  top: "weighted_avg"
+  name: "weighted_avg"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 64
+    kernel_size: 1 pad: 0
+    weight_filler { type: "xavier" }
+    bias_filler { type: "constant" }
+  }
+}
+# Add a narrow loss to the fused thing
+layer { 
+  bottom: "label"
+  top: "parity"
+  name: "parity"
+  type: "Im2parity"
+  convolution_param {
+    kernel_size: 3 pad: 1 dilation: 1
+    stride: 1
+  }
+}
+layer {
+  bottom: "weighted_avg"
+  top: "weighted_avg_dist"
+  name: "weighted_avg_dist"
+  type: "Im2dist"
+  convolution_param {
+    kernel_size: 3 pad: 1 dilation: 1
+    stride: 1
+  }
+  im2dist_param {
+    norm: L1
+  }
+}
+layer {
+  bottom: "weighted_avg_dist"
+  bottom: "parity"
+  top: "loss_avg"
+  name: "loss_avg"
+  type: "DistLoss"
+  convolution_param {
+    kernel_size: 3 pad: 1 dilation: 1
+    stride: 1
+  }
+  dist_loss_param {
+    alpha: 0.5
+    beta: 2
+    ignore_label: 255
+  }
+}
+# Add a wide loss to the fused thing
+layer { 
+  bottom: "label"
+  top: "parity2"
+  name: "parity2"
+  type: "Im2parity"
+  convolution_param {
+    kernel_size: 3 pad: 1 dilation: 2
+    stride: 1
+  }
+}
+layer {
+  bottom: "weighted_avg"
+  top: "weighted_avg_dist2"
+  name: "weighted_avg_dist2"
+  type: "Im2dist"
+  convolution_param {
+    kernel_size: 3 pad: 1 dilation: 2
+    stride: 1
+  }
+  im2dist_param {
+    norm: L1
+  }
+}
+layer {
+  bottom: "weighted_avg_dist2"
+  bottom: "parity2"
+  top: "loss_avg2"
+  name: "loss_avg2"
+  type: "DistLoss"
+  convolution_param {
+    kernel_size: 3 pad: 1 dilation: 2
+    stride: 1
+  }
+  dist_loss_param {
+    alpha: 0.5
+    beta: 2
+    ignore_label: 255
+  }
+}
+# Add a wider loss to the fused thing
+layer { 
+  bottom: "label"
+  top: "parity3"
+  name: "parity3"
+  type: "Im2parity"
+  convolution_param {
+    kernel_size: 3 pad: 1 dilation: 5
+    stride: 1
+  }
+}
+layer {
+  bottom: "weighted_avg"
+  top: "weighted_avg_dist3"
+  name: "weighted_avg_dist3"
+  type: "Im2dist"
+  convolution_param {
+    kernel_size: 3 pad: 1 dilation: 5
+    stride: 1
+  }
+  im2dist_param {
+    norm: L1
+  }
+}
+layer {
+  bottom: "weighted_avg_dist3"
+  bottom: "parity3"
+  top: "loss_avg3"
+  name: "loss_avg3"
+  type: "DistLoss"
+  convolution_param {
+    kernel_size: 3 pad: 1 dilation: 5
+    stride: 1
+  }
+  dist_loss_param {
+    alpha: 0.5
+    beta: 2
+    ignore_label: 255
+  }
+}

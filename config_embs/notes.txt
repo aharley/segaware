@@ -1,0 +1,5 @@
+i've decided that pos has nothing to do with learning good embeddings. we're only doing local comparisons anyway, so it's not a big deal. 
+
+exploring the masks gave me the impression that occasionally the embeddings only work in a short range, essentially producing edge cues rather than actual region awareness. i want to be more like the Maire paper where they have a nice wide log-polar grid. mine won't be log, nor polar, but it can be a wide grid. 
+
+here we are again. this time i'm 101% sure the im2dist layer has no problems.

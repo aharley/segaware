@@ -1,0 +1,1129 @@
+# VGG 16-layer network convolutional finetuning
+# Network modified to have smaller receptive field (128 pixels)
+# and smaller stride (8 pixels) when run in convolutional mode.
+#
+# In this model we also change max pooling size in the first 4 layer
+# from 2 to 3 while retaining stride = 2
+# which makes it easier to exactly align responses at different layer.
+#
+# For alignment to work, we set (we choose 32x so as to be able to evaluate
+# the model for all different subsampling sizes):
+# (1) input dimension equal to
+# $n = 32 * k - 31$, e.g., 321 (for k = 11)
+# Dimension after pooling w. subsampling:
+# (16 * k - 15); (8 * k - 7); (4 * k - 3); (2 * k - 1); (k).
+# For k = 11, these translate to
+#           161;          81;          41;          21;  11
+# 
+
+name: "segaware-all-largeFOV"
+
+layer {
+  name: "data"
+  type: "TwoImageData"
+  top: "data"
+  top: "label"
+  image_data_param {
+    root_folder: "/opt/home/aharley/datasets/VOC2012"
+    source: "segaware/list/voc_train_aug.txt"
+    batch_size: 1
+    shuffle: true
+  }
+  two_image_data_param {
+    first_is_color: true
+    second_is_color: false
+  }
+  transform_param {
+    mean_value: 104.008
+    mean_value: 116.669
+    mean_value: 122.675
+    crop_size: 321
+    mirror: true
+  }
+}
+# Embeddings
+# rgb for emb
+layer { 
+  bottom: "data"
+  name: "rgb_emb"
+  top: "rgb_emb"
+  type: "Power"
+  power_param {
+    scale: 0.0039215 # 1/255
+  }
+}
+# Embedding layers
+layer {
+  bottom: "data"
+  top: "emb1_1"
+  name: "emb1_1"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 64
+    kernel_size: 3 pad: 1
+    stride: 1
+    weight_filler { type: "xavier" }
+    bias_filler { type: "constant" }
+  }
+}
+layer {
+  bottom: "emb1_1"
+  top: "emb1_1"
+  name: "relu1_1"
+  type: "ReLU"
+}
+layer {
+  bottom: "emb1_1"
+  top: "emb1_2"
+  name: "emb1_2"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 64
+    kernel_size: 3 pad: 1
+    weight_filler { type: "xavier" }
+    bias_filler { type: "constant" }
+  }
+}
+layer {
+  bottom: "emb1_2"
+  top: "emb1_2"
+  name: "relu1_2"
+  type: "ReLU"
+}
+layer {
+  bottom: "emb1_2"
+  top: "emb_pool1"
+  name: "emb_pool1"
+  type: "Pooling"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3 pad: 1
+    stride: 2
+  }
+}
+layer {
+  bottom: "emb_pool1"
+  top: "emb2_1"
+  name: "emb2_1"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 128
+    kernel_size: 3 pad: 1
+    weight_filler { type: "xavier" }
+    bias_filler { type: "constant" }
+  }
+}
+layer {
+  bottom: "emb2_1"
+  top: "emb2_1"
+  name: "relu2_1"
+  type: "ReLU"
+}
+layer {
+  bottom: "emb2_1"
+  top: "emb2_2"
+  name: "emb2_2"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 128
+    kernel_size: 3 pad: 1
+    weight_filler { type: "xavier" }
+    bias_filler { type: "constant" }
+  }
+}
+layer {
+  bottom: "emb2_2"
+  top: "emb2_2"
+  name: "relu2_2"
+  type: "ReLU"
+}
+layer {
+  bottom: "emb2_2"
+  top: "emb_pool2"
+  name: "emb_pool2"
+  type: "Pooling"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3 pad: 1
+    stride: 2
+  }
+}
+layer {
+  bottom: "emb_pool2"
+  top: "emb3_1"
+  name: "emb3_1"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 256
+    kernel_size: 3 pad: 1
+    weight_filler { type: "xavier" }
+    bias_filler { type: "constant" }
+  }
+}
+layer {
+  bottom: "emb3_1"
+  top: "emb3_1"
+  name: "relu3_1"
+  type: "ReLU"
+}
+layer {
+  bottom: "emb3_1"
+  top: "emb3_2"
+  name: "emb3_2"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 256
+    kernel_size: 3 pad: 1
+    weight_filler { type: "xavier" }
+    bias_filler { type: "constant" }
+  }
+}
+layer {
+  bottom: "emb3_2"
+  top: "emb3_2"
+  name: "relu3_2"
+  type: "ReLU"
+}
+layer {
+  bottom: "emb3_2"
+  top: "emb3_3"
+  name: "emb3_3"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 256
+    kernel_size: 3 pad: 1
+    weight_filler { type: "xavier" }
+    bias_filler { type: "constant" }
+  }
+}
+layer {
+  bottom: "emb3_3"
+  top: "emb3_3"
+  name: "relu3_3"
+  type: "ReLU"
+}
+# resize, for uniformity
+layer {
+  type: "Interp"
+  bottom: "emb2_2"
+  name: "emb22_resized"
+  top: "emb22_resized"
+  interp_param {
+    height: 321
+    width: 321
+  }
+}
+layer {
+  type: "Interp"
+  bottom: "emb3_3"
+  name: "emb33_resized"
+  top: "emb33_resized"
+  interp_param {
+    height: 321
+    width: 321
+  }
+}
+# Concat, and weight
+layer {
+  bottom: "rgb_emb"
+  bottom: "emb1_2"
+  bottom: "emb22_resized"
+  bottom: "emb33_resized"
+  top: "fused"
+  name: "fused"
+  type: "Concat"
+}
+layer {
+  bottom: "fused"
+  top: "emb"
+  name: "emb"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 64
+    kernel_size: 1 pad: 0
+    weight_filler { type: "xavier" }
+    bias_filler { type: "constant" }
+  }
+}
+
+###### Mask prep for conv1
+layer {
+  bottom: "emb"
+  top: "emb_dist1"
+  name: "emb_dist1"
+  type: "Im2dist"
+  convolution_param {
+    kernel_size: 3 pad: 1
+    stride: 1
+  }
+  im2dist_param { norm: L1 }
+}
+layer {
+  bottom: "emb_dist1"
+  top: "weighted_emb_dist1_1"
+  name: "weighted_emb_dist1_1"
+  type: "Scale"
+  param { lr_mult: 1 decay_mult: 1 }
+  scale_param { num_axes: 0 filler { type: "constant" value: 0.05 } bias_term: false }
+}
+layer { bottom: "weighted_emb_dist1_1" top: "abs_emb_dist1_1" name: "abs_emb_dist1_1" type: "AbsVal" }
+layer { bottom: "abs_emb_dist1_1" top: "exp_emb_dist1_1" name: "exp_emb_dist1_1" type: "Exp" exp_param { scale: -1 } }
+layer { bottom: "exp_emb_dist1_1" top: "exp_emb_dist1_1_3chan" name: "exp_emb_dist1_1_3chan" type: "Tile" tile_param { axis: 1 tiles: 3 }}
+layer {
+  bottom: "emb_dist1"
+  top: "weighted_emb_dist1_2"
+  name: "weighted_emb_dist1_2"
+  type: "Scale"
+  param { lr_mult: 1 decay_mult: 1 }
+  scale_param { num_axes: 0 filler { type: "constant" value: 0.05 } bias_term: false }
+}
+layer { bottom: "weighted_emb_dist1_2" top: "abs_emb_dist1_2" name: "abs_emb_dist1_2" type: "AbsVal"}
+layer { bottom: "abs_emb_dist1_2" top: "exp_emb_dist1_2" name: "exp_emb_dist1_2" type: "Exp" exp_param { scale: -1 }}
+layer { bottom: "exp_emb_dist1_2" top: "exp_emb_dist1_2_64chan" name: "exp_emb_dist1_2_64chan" type: "Tile" tile_param { axis: 1 tiles: 64 }}
+layer {
+  bottom: "data"
+  top: "im2col_conv1_1"
+  name: "im2col_conv1_1"
+  type: "Im2col"
+  convolution_param {
+    num_output: 64 kernel_size: 3 pad: 1
+  }
+}
+layer { 
+  bottom: "im2col_conv1_1" 
+  bottom: "exp_emb_dist1_1_3chan"
+  top: "im2col_conv1_1_hit"
+  name: "im2col_conv1_1_hit"
+  type: "Eltwise" 
+  eltwise_param { operation: PROD }
+}
+layer { 
+  bottom: "im2col_conv1_1_hit"
+  top: "conv1_1"
+  name: "conv1_1"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 64 kernel_size: 3 pad: 1
+    bottom_is_im2col: true
+  }
+}
+layer {
+  bottom: "conv1_1"
+  top: "conv1_1"
+  name: "relu1_1"
+  type: "ReLU"
+}
+layer {
+  bottom: "conv1_1"
+  top: "im2col_conv1_2"
+  name: "im2col_conv1_2"
+  type: "Im2col"
+  convolution_param {
+    num_output: 64 kernel_size: 3 pad: 1
+    bottom_is_im2col: true
+  }
+}
+layer { 
+  bottom: "im2col_conv1_2" 
+  bottom: "exp_emb_dist1_2_64chan"
+  top: "im2col_conv1_2_hit"
+  name: "im2col_conv1_2_hit"
+  type: "Eltwise" 
+  eltwise_param { operation: PROD }
+}
+layer { 
+  bottom: "im2col_conv1_2_hit"
+  top: "conv1_2"
+  name: "conv1_2"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 64 kernel_size: 3 pad: 1
+    bottom_is_im2col: true
+  }
+}
+layer {
+  bottom: "conv1_2"
+  top: "conv1_2"
+  name: "relu1_2"
+  type: "ReLU"
+}
+layer {
+  bottom: "conv1_2"
+  top: "pool1"
+  name: "pool1"
+  type: "Pooling"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3 pad: 1 stride: 2
+  }
+}
+###### Mask prep for conv2
+layer {
+  bottom: "emb"
+  top: "emb_shrink2"
+  name: "emb_shrink2"
+  type: "Interp"
+  interp_param {
+    shrink_factor: 2
+    pad_beg: 0
+    pad_end: 0
+  }
+}
+layer {
+  bottom: "emb_shrink2"
+  top: "emb_dist2"
+  name: "emb_dist2"
+  type: "Im2dist"
+  convolution_param {
+    kernel_size: 3 pad: 1
+    stride: 1
+  }
+  im2dist_param { norm: L1 }
+}
+layer {
+  bottom: "emb_dist2"
+  top: "weighted_emb_dist2_1"
+  name: "weighted_emb_dist2_1"
+  type: "Scale"
+  param { lr_mult: 1 decay_mult: 1 }
+  scale_param { num_axes: 0 filler { type: "constant" value: 0.05 } bias_term: false }
+}
+layer { bottom: "weighted_emb_dist2_1" top: "abs_emb_dist2_1" name: "abs_emb_dist2_1" type: "AbsVal"}
+layer { bottom: "abs_emb_dist2_1" top: "exp_emb_dist2_1" name: "exp_emb_dist2_1" type: "Exp" exp_param { scale: -1 }}
+layer { bottom: "exp_emb_dist2_1" top: "exp_emb_dist2_1_64chan" name: "exp_emb_dist2_1_64chan" type: "Tile" tile_param { axis: 1 tiles: 64 }}
+layer {
+  bottom: "emb_dist2"
+  top: "weighted_emb_dist2_2"
+  name: "weighted_emb_dist2_2"
+  type: "Scale"
+  param { lr_mult: 1 decay_mult: 1 }
+  scale_param { num_axes: 0 filler { type: "constant" value: 0.05 } bias_term: false }
+}
+layer { bottom: "weighted_emb_dist2_2" top: "abs_emb_dist2_2" name: "abs_emb_dist2_2" type: "AbsVal"}
+layer { bottom: "abs_emb_dist2_2" top: "exp_emb_dist2_2" name: "exp_emb_dist2_2" type: "Exp" exp_param { scale: -1 }}
+layer { bottom: "exp_emb_dist2_2" top: "exp_emb_dist2_2_128chan" name: "exp_emb_dist2_2_128chan" type: "Tile" tile_param { axis: 1 tiles: 128 }}
+layer {
+  bottom: "pool1"
+  top: "im2col_conv2_1"
+  name: "im2col_conv2_1"
+  type: "Im2col"
+  convolution_param {
+    num_output: 128 kernel_size: 3 pad: 1
+  }
+}
+layer { 
+  bottom: "im2col_conv2_1" 
+  bottom: "exp_emb_dist2_1_64chan"
+  top: "im2col_conv2_1_hit"
+  name: "im2col_conv2_1_hit"
+  type: "Eltwise" 
+  eltwise_param { operation: PROD }
+}
+layer { 
+  bottom: "im2col_conv2_1_hit"
+  top: "conv2_1"
+  name: "conv2_1"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 128 kernel_size: 3 pad: 1
+    bottom_is_im2col: true
+  }
+}
+layer {
+  bottom: "conv2_1"
+  top: "conv2_1"
+  name: "relu2_1"
+  type: "ReLU"
+}
+layer {
+  bottom: "conv2_1"
+  top: "im2col_conv2_2"
+  name: "im2col_conv2_2"
+  type: "Im2col"
+  convolution_param {
+    num_output: 128 kernel_size: 3 pad: 1
+  }
+}
+layer { 
+  bottom: "im2col_conv2_2" 
+  bottom: "exp_emb_dist2_2_128chan"
+  top: "im2col_conv2_2_hit"
+  name: "im2col_conv2_2_hit"
+  type: "Eltwise" 
+  eltwise_param { operation: PROD }
+}
+layer { 
+  bottom: "im2col_conv2_2_hit"
+  top: "conv2_2"
+  name: "conv2_2"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 128 kernel_size: 3 pad: 1
+    bottom_is_im2col: true
+  }
+}
+layer {
+  bottom: "conv2_2"
+  top: "conv2_2"
+  name: "relu2_2"
+  type: "ReLU"
+}
+layer {
+  bottom: "conv2_2"
+  top: "pool2"
+  name: "pool2"
+  type: "Pooling"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3 pad: 1 stride: 2
+  }
+}
+###### Mask prep for conv3
+layer {
+  bottom: "emb"
+  top: "emb_shrink4"
+  name: "emb_shrink4"
+  type: "Interp"
+  interp_param {
+    shrink_factor: 4
+    pad_beg: 0
+    pad_end: 0
+  }
+}
+layer {
+  bottom: "emb_shrink4"
+  top: "emb_dist3"
+  name: "emb_dist3"
+  type: "Im2dist"
+  convolution_param {
+    kernel_size: 3 pad: 1
+    stride: 1
+  }
+  im2dist_param { norm: L1 }
+}
+layer {
+  bottom: "emb_dist3"
+  top: "weighted_emb_dist3_1"
+  name: "weighted_emb_dist3_1"
+  type: "Scale"
+  param { lr_mult: 1 decay_mult: 1 }
+  scale_param { num_axes: 0 filler { type: "constant" value: 0.05 } bias_term: false }
+}
+layer { bottom: "weighted_emb_dist3_1" top: "abs_emb_dist3_1" name: "abs_emb_dist3_1" type: "AbsVal"}
+layer { bottom: "abs_emb_dist3_1" top: "exp_emb_dist3_1" name: "exp_emb_dist3_1" type: "Exp" exp_param { scale: -1 }}
+layer { bottom: "exp_emb_dist3_1" top: "exp_emb_dist3_1_128chan" name: "exp_emb_dist3_1_128chan" type: "Tile" tile_param { axis: 1 tiles: 128 }}
+layer {
+  bottom: "emb_dist3"
+  top: "weighted_emb_dist3_2"
+  name: "weighted_emb_dist3_2"
+  type: "Scale"
+  param { lr_mult: 1 decay_mult: 1 }
+  scale_param { num_axes: 0 filler { type: "constant" value: 0.05 } bias_term: false }
+}
+layer { bottom: "weighted_emb_dist3_2" top: "abs_emb_dist3_2" name: "abs_emb_dist3_2" type: "AbsVal"}
+layer { bottom: "abs_emb_dist3_2" top: "exp_emb_dist3_2" name: "exp_emb_dist3_2" type: "Exp" exp_param { scale: -1 }}
+layer { bottom: "exp_emb_dist3_2" top: "exp_emb_dist3_2_256chan" name: "exp_emb_dist3_2_256chan" type: "Tile" tile_param { axis: 1 tiles: 256 }}
+layer {
+  bottom: "emb_dist3"
+  top: "weighted_emb_dist3_3"
+  name: "weighted_emb_dist3_3"
+  type: "Scale"
+  param { lr_mult: 1 decay_mult: 1 }
+  scale_param { num_axes: 0 filler { type: "constant" value: 0.05 } bias_term: false }
+}
+layer { bottom: "weighted_emb_dist3_3" top: "abs_emb_dist3_3" name: "abs_emb_dist3_3" type: "AbsVal"}
+layer { bottom: "abs_emb_dist3_3" top: "exp_emb_dist3_3" name: "exp_emb_dist3_3" type: "Exp" exp_param { scale: -1 }}
+layer { bottom: "exp_emb_dist3_3" top: "exp_emb_dist3_3_256chan" name: "exp_emb_dist3_3_256chan" type: "Tile" tile_param { axis: 1 tiles: 256 }}
+layer {
+  bottom: "pool2"
+  top: "im2col_conv3_1"
+  name: "im2col_conv3_1"
+  type: "Im2col"
+  convolution_param {
+    num_output: 128 kernel_size: 3 pad: 1
+  }
+}
+layer { 
+  bottom: "im2col_conv3_1" 
+  bottom: "exp_emb_dist3_1_128chan"
+  top: "im2col_conv3_1_hit"
+  name: "im2col_conv3_1_hit"
+  type: "Eltwise" 
+  eltwise_param { operation: PROD }
+}
+layer {
+  bottom: "im2col_conv3_1_hit"
+  top: "conv3_1"
+  name: "conv3_1"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 256 kernel_size: 3 pad: 1
+    bottom_is_im2col: true
+  }
+}
+layer {
+  bottom: "conv3_1"
+  top: "conv3_1"
+  name: "relu3_1"
+  type: "ReLU"
+}
+layer {
+  bottom: "conv3_1"
+  top: "im2col_conv3_2"
+  name: "im2col_conv3_2"
+  type: "Im2col"
+  convolution_param {
+    num_output: 256 kernel_size: 3 pad: 1
+  }
+}
+layer { 
+  bottom: "im2col_conv3_2" 
+  bottom: "exp_emb_dist3_2_256chan"
+  top: "im2col_conv3_2_hit"
+  name: "im2col_conv3_2_hit"
+  type: "Eltwise" 
+  eltwise_param { operation: PROD }
+}
+layer {
+  bottom: "im2col_conv3_2_hit"
+  top: "conv3_2"
+  name: "conv3_2"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 256 kernel_size: 3 pad: 1
+    bottom_is_im2col: true
+  }
+}
+layer {
+  bottom: "conv3_2"
+  top: "conv3_2"
+  name: "relu3_2"
+  type: "ReLU"
+}
+layer {
+  bottom: "conv3_2"
+  top: "im2col_conv3_3"
+  name: "im2col_conv3_3"
+  type: "Im2col"
+  convolution_param {
+    num_output: 256 kernel_size: 3 pad: 1
+  }
+}
+layer { 
+  bottom: "im2col_conv3_3" 
+  bottom: "exp_emb_dist3_3_256chan"
+  top: "im2col_conv3_3_hit"
+  name: "im2col_conv3_3_hit"
+  type: "Eltwise" 
+  eltwise_param { operation: PROD }
+}
+layer {
+  bottom: "im2col_conv3_3_hit"
+  top: "conv3_3"
+  name: "conv3_3"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 256 kernel_size: 3 pad: 1
+    bottom_is_im2col: true
+  }
+}
+layer {
+  bottom: "conv3_3"
+  top: "conv3_3"
+  name: "relu3_3"
+  type: "ReLU"
+}
+layer {
+  bottom: "conv3_3"
+  top: "pool3"
+  name: "pool3"
+  type: "Pooling"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3 pad: 1
+    stride: 2
+  }
+}
+###### Mask prep for conv4
+layer {
+  bottom: "emb"
+  top: "emb_shrink8"
+  name: "emb_shrink8"
+  type: "Interp"
+  interp_param {
+    shrink_factor: 8
+    pad_beg: 0
+    pad_end: 0
+  }
+}
+layer {
+  bottom: "emb_shrink8"
+  top: "emb_dist4"
+  name: "emb_dist4"
+  type: "Im2dist"
+  convolution_param {
+    kernel_size: 3 pad: 1
+    stride: 1
+  }
+  im2dist_param { norm: L1 }
+}
+layer {
+  bottom: "emb_dist4"
+  top: "weighted_emb_dist4_1"
+  name: "weighted_emb_dist4_1"
+  type: "Scale"
+  param { lr_mult: 1 decay_mult: 1 }
+  scale_param { num_axes: 0 filler { type: "constant" value: 0.05 } bias_term: false }
+}
+layer { bottom: "weighted_emb_dist4_1" top: "abs_emb_dist4_1" name: "abs_emb_dist4_1" type: "AbsVal"}
+layer { bottom: "abs_emb_dist4_1" top: "exp_emb_dist4_1" name: "exp_emb_dist4_1" type: "Exp" exp_param { scale: -1 }}
+layer { bottom: "exp_emb_dist4_1" top: "exp_emb_dist4_1_256chan" name: "exp_emb_dist4_1_256chan" type: "Tile" tile_param { axis: 1 tiles: 256 }}
+layer {
+  bottom: "emb_dist4"
+  top: "weighted_emb_dist4_2"
+  name: "weighted_emb_dist4_2"
+  type: "Scale"
+  param { lr_mult: 1 decay_mult: 1 }
+  scale_param { num_axes: 0 filler { type: "constant" value: 0.05 } bias_term: false }
+}
+layer { bottom: "weighted_emb_dist4_2" top: "abs_emb_dist4_2" name: "abs_emb_dist4_2" type: "AbsVal"}
+layer { bottom: "abs_emb_dist4_2" top: "exp_emb_dist4_2" name: "exp_emb_dist4_2" type: "Exp" exp_param { scale: -1 }}
+layer { bottom: "exp_emb_dist4_2" top: "exp_emb_dist4_2_512chan" name: "exp_emb_dist4_2_512chan" type: "Tile" tile_param { axis: 1 tiles: 512 }}
+layer {
+  bottom: "emb_dist4"
+  top: "weighted_emb_dist4_3"
+  name: "weighted_emb_dist4_3"
+  type: "Scale"
+  param { lr_mult: 1 decay_mult: 1 }
+  scale_param { num_axes: 0 filler { type: "constant" value: 0.05 } bias_term: false }
+}
+layer { bottom: "weighted_emb_dist4_3" top: "abs_emb_dist4_3" name: "abs_emb_dist4_3" type: "AbsVal"}
+layer { bottom: "abs_emb_dist4_3" top: "exp_emb_dist4_3" name: "exp_emb_dist4_3" type: "Exp" exp_param { scale: -1 }}
+layer { bottom: "exp_emb_dist4_3" top: "exp_emb_dist4_3_512chan" name: "exp_emb_dist4_3_512chan" type: "Tile" tile_param { axis: 1 tiles: 512 }}
+layer {
+  bottom: "pool3"
+  top: "im2col_conv4_1"
+  name: "im2col_conv4_1"
+  type: "Im2col"
+  convolution_param {
+    num_output: 512 kernel_size: 3 pad: 1
+  }
+}
+layer { 
+  bottom: "im2col_conv4_1" 
+  bottom: "exp_emb_dist4_1_256chan"
+  top: "im2col_conv4_1_hit"
+  name: "im2col_conv4_1_hit"
+  type: "Eltwise" 
+  eltwise_param { operation: PROD }
+}
+layer {
+  bottom: "im2col_conv4_1_hit"
+  top: "conv4_1"
+  name: "conv4_1"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 512 kernel_size: 3 pad: 1
+    bottom_is_im2col: true
+  }
+}
+layer {
+  bottom: "conv4_1"
+  top: "conv4_1"
+  name: "relu4_1"
+  type: "ReLU"
+}
+layer {
+  bottom: "conv4_1"
+  top: "im2col_conv4_2"
+  name: "im2col_conv4_2"
+  type: "Im2col"
+  convolution_param {
+    num_output: 512 kernel_size: 3 pad: 1
+  }
+}
+layer { 
+  bottom: "im2col_conv4_2" 
+  bottom: "exp_emb_dist4_2_512chan"
+  top: "im2col_conv4_2_hit"
+  name: "im2col_conv4_2_hit"
+  type: "Eltwise" 
+  eltwise_param { operation: PROD }
+}
+layer {
+  bottom: "im2col_conv4_2_hit"
+  top: "conv4_2"
+  name: "conv4_2"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 512 kernel_size: 3 pad: 1
+    bottom_is_im2col: true
+  }
+}
+layer {
+  bottom: "conv4_2"
+  top: "conv4_2"
+  name: "relu4_2"
+  type: "ReLU"
+}
+layer {
+  bottom: "conv4_2"
+  top: "im2col_conv4_3"
+  name: "im2col_conv4_3"
+  type: "Im2col"
+  convolution_param {
+    num_output: 512 kernel_size: 3 pad: 1
+  }
+}
+layer { 
+  bottom: "im2col_conv4_3" 
+  bottom: "exp_emb_dist4_3_512chan"
+  top: "im2col_conv4_3_hit"
+  name: "im2col_conv4_3_hit"
+  type: "Eltwise" 
+  eltwise_param { operation: PROD }
+}
+layer {
+  bottom: "im2col_conv4_3_hit"
+  top: "conv4_3"
+  name: "conv4_3"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 512 kernel_size: 3 pad: 1
+    bottom_is_im2col: true
+  }
+}
+layer {
+  bottom: "conv4_3"
+  top: "conv4_3"
+  name: "relu4_3"
+  type: "ReLU"
+}
+layer {
+  bottom: "conv4_3"
+  top: "pool4"
+  name: "pool4"
+  type: "Pooling"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3 pad: 1 stride: 1
+  }
+}
+###### Mask prep for conv5
+layer {
+  bottom: "emb_shrink8"
+  top: "emb_dist5"
+  name: "emb_dist5"
+  type: "Im2dist"
+  convolution_param {
+    kernel_size: 3 pad: 2 dilation: 2
+    stride: 1
+  }
+  im2dist_param { norm: L1 }
+}
+layer {
+  bottom: "emb_dist5"
+  top: "weighted_emb_dist5_1"
+  name: "weighted_emb_dist5_1"
+  type: "Scale"
+  param { lr_mult: 1 decay_mult: 1 }
+  scale_param { num_axes: 0 filler { type: "constant" value: 0.05 } bias_term: false }
+}
+layer { bottom: "weighted_emb_dist5_1" top: "abs_emb_dist5_1" name: "abs_emb_dist5_1" type: "AbsVal"}
+layer { bottom: "abs_emb_dist5_1" top: "exp_emb_dist5_1" name: "exp_emb_dist5_1" type: "Exp" exp_param { scale: -1 }}
+layer { bottom: "exp_emb_dist5_1" top: "exp_emb_dist5_1_512chan" name: "exp_emb_dist5_1_512chan" type: "Tile" tile_param { axis: 1 tiles: 512 }}
+layer {
+  bottom: "emb_dist5"
+  top: "weighted_emb_dist5_2"
+  name: "weighted_emb_dist5_2"
+  type: "Scale"
+  param { lr_mult: 1 decay_mult: 1 }
+  scale_param { num_axes: 0 filler { type: "constant" value: 0.05 } bias_term: false }
+}
+layer { bottom: "weighted_emb_dist5_2" top: "abs_emb_dist5_2" name: "abs_emb_dist5_2" type: "AbsVal"}
+layer { bottom: "abs_emb_dist5_2" top: "exp_emb_dist5_2" name: "exp_emb_dist5_2" type: "Exp" exp_param { scale: -1 }}
+layer { bottom: "exp_emb_dist5_2" top: "exp_emb_dist5_2_512chan" name: "exp_emb_dist5_2_512chan" type: "Tile" tile_param { axis: 1 tiles: 512 }}
+layer {
+  bottom: "emb_dist5"
+  top: "weighted_emb_dist5_3"
+  name: "weighted_emb_dist5_3"
+  type: "Scale"
+  param { lr_mult: 1 decay_mult: 1 }
+  scale_param { num_axes: 0 filler { type: "constant" value: 0.05 } bias_term: false }
+}
+layer { bottom: "weighted_emb_dist5_3" top: "abs_emb_dist5_3" name: "abs_emb_dist5_3" type: "AbsVal"}
+layer { bottom: "abs_emb_dist5_3" top: "exp_emb_dist5_3" name: "exp_emb_dist5_3" type: "Exp" exp_param { scale: -1 }}
+layer { bottom: "exp_emb_dist5_3" top: "exp_emb_dist5_3_512chan" name: "exp_emb_dist5_3_512chan" type: "Tile" tile_param { axis: 1 tiles: 512 }}
+## conv5 real start
+layer {
+  bottom: "pool4"
+  top: "im2col_conv5_1"
+  name: "im2col_conv5_1"
+  type: "Im2col"
+  convolution_param {
+    num_output: 512 kernel_size: 3 pad: 2 dilation: 2
+  }
+}
+layer { 
+  bottom: "im2col_conv5_1" 
+  bottom: "exp_emb_dist5_1_512chan"
+  top: "im2col_conv5_1_hit"
+  name: "im2col_conv5_1_hit"
+  type: "Eltwise" 
+  eltwise_param { operation: PROD }
+}
+layer {
+  bottom: "im2col_conv5_1_hit"
+  top: "conv5_1"
+  name: "conv5_1"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 512 kernel_size: 3 pad: 2 dilation: 2
+    bottom_is_im2col: true
+  }
+}
+layer {
+  bottom: "conv5_1"
+  top: "conv5_1"
+  name: "relu5_1"
+  type: "ReLU"
+}
+layer {
+  bottom: "conv5_1"
+  top: "im2col_conv5_2"
+  name: "im2col_conv5_2"
+  type: "Im2col"
+  convolution_param {
+    num_output: 512 kernel_size: 3 pad: 2 dilation: 2
+  }
+}
+layer { 
+  bottom: "im2col_conv5_2" 
+  bottom: "exp_emb_dist5_2_512chan"
+  top: "im2col_conv5_2_hit"
+  name: "im2col_conv5_2_hit"
+  type: "Eltwise" 
+  eltwise_param { operation: PROD }
+}
+layer {
+  bottom: "im2col_conv5_2_hit"
+  top: "conv5_2"
+  name: "conv5_2"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 512 kernel_size: 3 pad: 2 dilation: 2
+    bottom_is_im2col: true
+  }
+}
+layer {
+  bottom: "conv5_2"
+  top: "conv5_2"
+  name: "relu5_2"
+  type: "ReLU"
+}
+layer {
+  bottom: "conv5_2"
+  top: "im2col_conv5_3"
+  name: "im2col_conv5_3"
+  type: "Im2col"
+  convolution_param {
+    num_output: 512 kernel_size: 3 pad: 2 dilation: 2
+  }
+}
+layer { 
+  bottom: "im2col_conv5_3" 
+  bottom: "exp_emb_dist5_3_512chan"
+  top: "im2col_conv5_3_hit"
+  name: "im2col_conv5_3_hit"
+  type: "Eltwise" 
+  eltwise_param { operation: PROD }
+}
+layer {
+  bottom: "im2col_conv5_3_hit"
+  top: "conv5_3"
+  name: "conv5_3"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 512 kernel_size: 3 pad: 2 dilation: 2
+    bottom_is_im2col: true
+  }
+}
+layer {
+  bottom: "conv5_3"
+  top: "conv5_3"
+  name: "relu5_3"
+  type: "ReLU"
+}
+layer {
+  bottom: "conv5_3"
+  top: "pool5"
+  name: "pool5"
+  type: "Pooling"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 1
+    pad: 1
+  }
+}
+layer { bottom: "pool5" top: "pool5a" name: "pool5a" type: "Pooling" 
+  pooling_param {
+    pool: AVE
+    kernel_size: 3 pad: 1
+    stride: 1
+  }
+}
+
+###### Mask prep for fc6
+layer {
+  bottom: "emb_shrink8"
+  top: "emb_dist6"
+  name: "emb_dist6"
+  type: "Im2dist"
+  convolution_param {
+    kernel_size: 3 pad: 12 dilation: 12
+    stride: 1
+  }
+  im2dist_param { norm: L1 }
+}
+layer {
+  bottom: "emb_dist6"
+  top: "weighted_emb_dist6"
+  name: "weighted_emb_dist6"
+  type: "Scale"
+  param { lr_mult: 1 decay_mult: 1 }
+  scale_param { num_axes: 0 filler { type: "constant" value: 0.05 } bias_term: false }
+}
+layer { bottom: "weighted_emb_dist6" top: "abs_emb_dist6" name: "abs_emb_dist6" type: "AbsVal"}
+layer { bottom: "abs_emb_dist6" top: "exp_emb_dist6" name: "exp_emb_dist6" type: "Exp" exp_param { scale: -1 }}
+layer { bottom: "exp_emb_dist6" top: "exp_emb_dist6_512chan" name: "exp_emb_dist6_512chan" type: "Tile" tile_param { axis: 1 tiles: 512 }}
+## fc6 real start
+layer {
+  bottom: "pool5a"
+  top: "im2col_fc6"
+  name: "im2col_fc6"
+  type: "Im2col"
+  convolution_param {
+    num_output: 1024 kernel_size: 3 pad: 12 dilation: 12
+  }
+}
+layer { 
+  bottom: "im2col_fc6" 
+  bottom: "exp_emb_dist6_512chan"
+  top: "im2col_fc6_hit"
+  name: "im2col_fc6_hit"
+  type: "Eltwise" 
+  eltwise_param { operation: PROD }
+}
+layer {
+  bottom: "im2col_fc6_hit"
+  top: "fc6"
+  name: "fc6"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 1024 kernel_size: 3 pad: 12 dilation: 12
+    bottom_is_im2col: true
+  }
+}
+layer {
+  bottom: "fc6"
+  top: "fc6"
+  name: "relu6"
+  type: "ReLU"
+}
+layer {
+  bottom: "fc6"
+  top: "fc6"
+  name: "drop6"
+  type: "Dropout"
+  dropout_param {
+    dropout_ratio: 0.5
+  }
+}
+layer {
+  bottom: "fc6"
+  top: "fc7"
+  name: "fc7"
+  type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  convolution_param {
+    num_output: 1024
+    kernel_size: 1
+  }
+}
+layer {
+  bottom: "fc7"
+  top: "fc7"
+  name: "relu7"
+  type: "ReLU"
+}
+layer {
+  bottom: "fc7"
+  top: "fc7"
+  name: "drop7"
+  type: "Dropout"
+  dropout_param {
+    dropout_ratio: 0.5
+  }
+}
+layer {
+  bottom: "fc7"
+  top: "fc8_voc12"
+  name: "fc8_voc12"
+  type: "Convolution"
+  param { lr_mult: 10 decay_mult: 1 } param { lr_mult: 20 decay_mult: 0 }
+  convolution_param {
+    num_output: 21
+    kernel_size: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  bottom: "label"
+  top: "label_shrink"
+  name: "label_shrink"
+  type: "Interp"
+  interp_param {
+    shrink_factor: 8
+    pad_beg: 0
+    pad_end: 0
+  }
+}
+layer {
+  name: "loss"
+  type: "SoftmaxWithLoss"
+  bottom: "fc8_voc12"
+  bottom: "label_shrink"
+  loss_param {
+    ignore_label: 255
+  }
+}

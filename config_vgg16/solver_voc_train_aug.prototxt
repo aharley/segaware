@@ -1,0 +1,15 @@
+train_net: "segaware/config/segaware-all-largeFOV/train_voc_train_aug.prototxt"
+
+lr_policy: "step"
+gamma: 0.1
+stepsize: 120000
+base_lr: 0.0001
+
+display: 10
+max_iter: 360000
+momentum: 0.9
+weight_decay: 0.0005
+
+snapshot: 60000
+snapshot_prefix: "segaware/model/segaware-all-largeFOV/train_voc_train_aug"
+solver_mode: GPU

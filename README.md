@@ -30,7 +30,7 @@ See `config_embs` for a full example.
 See `config_vgg16` for an example in which every convolution layer in the VGG16 architecture is made segmentation-aware.
 
 #### Using a segmentation-aware CRF
-- Use the `NormConvMeanfield` layer. As input, give it two copies of the unary potentials (produced by a `Split` layer), some embeddings, and a meshgrid-like input. For the meshgrid-like input, use `DummyData` with `data_filler { type: "xy" }`.
+- Use the `NormConvMeanfield` layer. As input, give it two copies of the unary potentials (produced by a `Split` layer), some embeddings, and a meshgrid-like input (produced by a `DummyData` layer with `data_filler { type: "xy" }`).
 
 See `config_resnet` for an example in which a segmentation-aware CRF is added to a resnet architecture. This example achives 79.8% IOU on the Pascal VOC test set. Download pretrained model weights [here](https://drive.google.com/file/d/0B37FFJE7o45TbmVhT1AwVzR3bmM/view?usp=sharing).
 

@@ -4,13 +4,10 @@
 
 <img src="http://www.cs.cmu.edu/~aharley/images/bike.png" width=493px>
 
-<img src="http://www.cs.cmu.edu/~aharley/segaware/images/seg.png" width=600px>
-<img src="http://www.cs.cmu.edu/~aharley/segaware/images/flow.png" width=600px>
-
 ### Installation
 Our code follows the [DeepLabV2](https://bitbucket.org/aquariusjay/deeplab-public-ver2) setup almost exactly.
 
-Follow the instructions for installing DeepLabV2, and then simply swap in the Caffe in this repo. 
+Follow the instructions for installing DeepLabV2, and then simply swap that Caffe with this Caffe.
 
 ### Citation
 ```

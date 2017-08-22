@@ -1,0 +1,2 @@
+for test_res.sh to work, this dir should contain the file 
+train_voc_trainval_aug_iter_5000.caffemodel

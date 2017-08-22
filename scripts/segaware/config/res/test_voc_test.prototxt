@@ -1,4 +1,4 @@
-name: "supergiven_17"
+name: "res"
 layer {
   name: "data"
   type: "ImageSegData"
@@ -22659,7 +22659,7 @@ layer {
 #     phase: TEST
 #   }
 #   mat_write_param {
-#     prefix: "segaware/features/supergiven_17/voc_test/fc_fusion/"
+#     prefix: "segaware/features/res/voc_test/fc_fusion/"
 #     source: "segaware/list/voc_test_id.txt"
 #     strip: 0
 #     period: 1
@@ -22816,7 +22816,7 @@ layer {
     phase: TEST
   }
   mat_write_param {
-    prefix: "segaware/features/supergiven_17/voc_test/mycrf/"
+    prefix: "segaware/features/res/voc_test/mycrf/"
     source: "segaware/list/voc_test_id.txt"
     strip: 0
     period: 1
@@ -22860,7 +22860,7 @@ layer {
 #     phase: TEST
 #   }
 #   mat_write_param {
-#     prefix: "segaware/features/supergiven_17/voc_test/fc8/"
+#     prefix: "segaware/features/res/voc_test/fc8/"
 #     source: "segaware/list/voc_test_id.txt"
 #     strip: 0
 #     period: 1

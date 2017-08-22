@@ -7,9 +7,10 @@
 Segmentation-aware convolution filters are invariant to backgrounds. We achieve this in three steps: (i) compute segmentation cues for each pixel (i.e., “embeddings”), (ii) create a foreground mask for each patch, and (iii) combine the masks with convolution, so that the filters only process the local foreground in each image patch.
 
 ### Installation
-Our code follows the [DeepLabV2](https://bitbucket.org/aquariusjay/deeplab-public-ver2) setup almost exactly.
 
-Follow the instructions for installing DeepLabV2, and then simply swap that Caffe with this Caffe.
+For prerequisites, refer to [DeepLabV2](https://bitbucket.org/aquariusjay/deeplab-public-ver2). Our setup follows theirs almost exactly.
+
+Once you have the prequisites, simply run `make all -j4` from within `caffe/` to compile the code with `4` cores.
 
 ### Learning embeddings with dedicated loss
 - Use `Convolution` layers to create dense embeddings.

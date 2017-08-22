@@ -43,7 +43,7 @@ See `scripts/segaware/config/res` for an example in which a segmentation-aware C
 <img src="http://www.cs.cmu.edu/~aharley/segaware/images/sample_results/2008_000129.png" width=500px>
 - If you zip these results, and submit them to the official PASCAL VOC test server, you will get 79.83900% IOU.
 
-If you run this set of steps for the validation set, you can run `eval.sh` to evaluate your results on the PASCAL VOC validation set. If you change the model, you may want to run `./edit_env.sh` to update the evaluation instructions.
+If you run this set of steps for the validation set, you can run `./eval.sh` to evaluate your results on the PASCAL VOC validation set. If you change the model, you may want to run `./edit_env.sh` to update the evaluation instructions.
 
 ### Citation
 ```

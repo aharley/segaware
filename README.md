@@ -39,8 +39,8 @@ See `scripts/segaware/config/res` for an example in which a segmentation-aware C
 - Download pretrained model weights [here](https://drive.google.com/file/d/0B37FFJE7o45TbmVhT1AwVzR3bmM/view?usp=sharing), and put that file into `scripts/segaware/model/res/`.
 - From `scripts`, run `./test_res.sh`. This will produce `.mat` files in `scripts/segaware/features/res/voc_test/mycrf/`.
 - From `scripts`, run `./gen_preds.sh`. This will produce colorized `.png` results in `scripts/segaware/results/res/voc_test/mycrf/none/results/VOC2012/Segmentation/comp6_test_cls`. An example input-ouput pair is shown below:
-<img src="http://www.cs.cmu.edu/~aharley/images/sample_results/2008_000129.jpg" width=500px>
-<img src="http://www.cs.cmu.edu/~aharley/images/sample_results/2008_000129.png" width=500px>
+<img src="http://www.cs.cmu.edu/~aharley/segaware/images/sample_results/2008_000129.jpg" width=500px>
+<img src="http://www.cs.cmu.edu/~aharley/segaware/images/sample_results/2008_000129.png" width=500px>
 - If you zip these results, and submit them to the official PASCAL VOC test server, you will get 79.83900% IOU.
 
 If you run this set of steps for the validation set, you can run `eval.sh` to evaluate your results on the PASCAL VOC validation set. If you change the model, you may want to run `./edit_env.sh` to update the evaluation instructions.

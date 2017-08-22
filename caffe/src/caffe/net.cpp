@@ -56,7 +56,22 @@ void Net<Dtype>::Init(const NetParameter& in_param) {
   name_ = param.name();
   map<string, int> blob_name_to_idx;
   set<string> available_blobs;
+  CHECK(param.input_dim_size() == 0 || param.input_shape_size() == 0)
+      << "Must specify either input_shape OR deprecated input_dim, not both.";
+  if (param.input_dim_size() > 0) {
+    // Deprecated 4D dimensions.
+    CHECK_EQ(param.input_size() * 4, param.input_dim_size())
+        << "Incorrect input blob dimension specifications.";
+  } else {
+    CHECK_EQ(param.input_size(), param.input_shape_size())
+        << "Exactly one input_shape must be specified per input.";
+  }
   memory_used_ = 0;
+  // set the input blobs
+  for (int input_id = 0; input_id < param.input_size(); ++input_id) {
+    const int layer_id = -1;  // inputs have fake layer ID -1
+    AppendTop(param, layer_id, input_id, &available_blobs, &blob_name_to_idx);
+  }
   // For each layer, set up its input and output
   bottom_vecs_.resize(param.layer_size());
   top_vecs_.resize(param.layer_size());
@@ -103,12 +118,6 @@ void Net<Dtype>::Init(const NetParameter& in_param) {
     int num_top = layer_param.top_size();
     for (int top_id = 0; top_id < num_top; ++top_id) {
       AppendTop(param, layer_id, top_id, &available_blobs, &blob_name_to_idx);
-      // Collect Input layer tops as Net inputs.
-      if (layer_param.type() == "Input") {
-        const int blob_id = blobs_.size() - 1;
-        net_input_blob_indices_.push_back(blob_id);
-        net_input_blobs_.push_back(blobs_[blob_id].get());
-      }
     }
     // If the layer specifies that AutoTopBlobs() -> true and the LayerParameter
     // specified fewer than the required number (as specified by
@@ -268,6 +277,7 @@ void Net<Dtype>::Init(const NetParameter& in_param) {
   }
   for (size_t layer_id = 0; layer_id < layer_names_.size(); ++layer_id) {
     layer_names_index_[layer_names_[layer_id]] = layer_id;
+    layer_index_names_[layer_id] = layer_names_[layer_id];
   }
   ShareWeights();
   debug_info_ = param.debug_info();
@@ -370,17 +380,19 @@ bool Net<Dtype>::StateMeetsRule(const NetState& state,
   return true;
 }
 
-// Helper for Net::Init: add a new top blob to the net.
+// Helper for Net::Init: add a new input or top blob to the net.  (Inputs have
+// layer_id == -1, tops have layer_id >= 0.)
 template <typename Dtype>
 void Net<Dtype>::AppendTop(const NetParameter& param, const int layer_id,
                            const int top_id, set<string>* available_blobs,
                            map<string, int>* blob_name_to_idx) {
-  shared_ptr<LayerParameter> layer_param(
-      new LayerParameter(param.layer(layer_id)));
-  const string& blob_name = (layer_param->top_size() > top_id) ?
-      layer_param->top(top_id) : "(automatic)";
+  shared_ptr<LayerParameter> layer_param((layer_id >= 0) ?
+    (new LayerParameter(param.layer(layer_id))) : NULL);
+  const string& blob_name = layer_param ?
+      (layer_param->top_size() > top_id ?
+          layer_param->top(top_id) : "(automatic)") : param.input(top_id);
   // Check if we are doing in-place computation
-  if (blob_name_to_idx && layer_param->bottom_size() > top_id &&
+  if (blob_name_to_idx && layer_param && layer_param->bottom_size() > top_id &&
       blob_name == layer_param->bottom(top_id)) {
     // In-place computation
     LOG_IF(INFO, Caffe::root_solver())
@@ -396,7 +408,11 @@ void Net<Dtype>::AppendTop(const NetParameter& param, const int layer_id,
   } else {
     // Normal output.
     if (Caffe::root_solver()) {
-      LOG(INFO) << layer_param->name() << " -> " << blob_name;
+      if (layer_param) {
+        LOG(INFO) << layer_param->name() << " -> " << blob_name;
+      } else {
+        LOG(INFO) << "Input " << top_id << " -> " << blob_name;
+      }
     }
     shared_ptr<Blob<Dtype> > blob_pointer(new Blob<Dtype>());
     const int blob_id = blobs_.size();
@@ -404,8 +420,22 @@ void Net<Dtype>::AppendTop(const NetParameter& param, const int layer_id,
     blob_names_.push_back(blob_name);
     blob_need_backward_.push_back(false);
     if (blob_name_to_idx) { (*blob_name_to_idx)[blob_name] = blob_id; }
-    top_id_vecs_[layer_id].push_back(blob_id);
-    top_vecs_[layer_id].push_back(blob_pointer.get());
+    if (layer_id == -1) {
+      // Set the (explicitly specified) dimensions of the input blob.
+      if (param.input_dim_size() > 0) {
+        blob_pointer->Reshape(param.input_dim(top_id * 4),
+                              param.input_dim(top_id * 4 + 1),
+                              param.input_dim(top_id * 4 + 2),
+                              param.input_dim(top_id * 4 + 3));
+      } else {
+        blob_pointer->Reshape(param.input_shape(top_id));
+      }
+      net_input_blob_indices_.push_back(blob_id);
+      net_input_blobs_.push_back(blob_pointer.get());
+    } else {
+      top_id_vecs_[layer_id].push_back(blob_id);
+      top_vecs_[layer_id].push_back(blob_pointer.get());
+    }
   }
   if (available_blobs) { available_blobs->insert(blob_name); }
 }
@@ -537,9 +567,29 @@ Dtype Net<Dtype>::ForwardFromTo(int start, int end) {
   CHECK_GE(start, 0);
   CHECK_LT(end, layers_.size());
   Dtype loss = 0;
+  if (debug_info_) {
+    for (int i = 0; i < net_input_blobs_.size(); ++i) {
+      InputDebugInfo(i);
+    }
+  }
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
+  for (int i = 0; i < net_output_blobs_.size(); ++i) {
+      *net_output_blobs_[i]->mutable_cpu_data() = (Dtype)0.0;
+  }
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
   for (int i = start; i <= end; ++i) {
     // LOG(ERROR) << "Forwarding " << layer_names_[i];
-    Dtype layer_loss = layers_[i]->Forward(bottom_vecs_[i], top_vecs_[i]);
+    //fprintf(stderr,"Now Forward-Propagating Layer [%s]\n",layer_index_names_[i].c_str());
+      Dtype layer_loss = layers_[i]->Forward(bottom_vecs_[i], top_vecs_[i]);
+    // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
+      if (layers_[i]->layer_param().deletebottom()){
+        //fprintf(stderr,"Deleting bottom of Layer [%s]\n",layer_index_names_[i].c_str());
+          for (int k = 0;k<bottom_vecs_[i].size();k++)
+          {
+              bottom_vecs_[i][k]->RemoveBoth();
+          }
+      }
+    // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
     loss += layer_loss;
     if (debug_info_) { ForwardDebugInfo(i); }
   }
@@ -557,7 +607,7 @@ Dtype Net<Dtype>::ForwardTo(int end) {
 }
 
 template <typename Dtype>
-const vector<Blob<Dtype>*>& Net<Dtype>::Forward(Dtype* loss) {
+const vector<Blob<Dtype>*>& Net<Dtype>::ForwardPrefilled(Dtype* loss) {
   if (loss != NULL) {
     *loss = ForwardFromTo(0, layers_.size() - 1);
   } else {
@@ -569,26 +619,76 @@ const vector<Blob<Dtype>*>& Net<Dtype>::Forward(Dtype* loss) {
 template <typename Dtype>
 const vector<Blob<Dtype>*>& Net<Dtype>::Forward(
     const vector<Blob<Dtype>*> & bottom, Dtype* loss) {
-  LOG_EVERY_N(WARNING, 1000) << "DEPRECATED: Forward(bottom, loss) "
-      << "will be removed in a future version. Use Forward(loss).";
-  // Copy bottom to net bottoms
+  // Copy bottom to internal bottom
   for (int i = 0; i < bottom.size(); ++i) {
     net_input_blobs_[i]->CopyFrom(*bottom[i]);
   }
-  return Forward(loss);
+  return ForwardPrefilled(loss);
+}
+
+template <typename Dtype>
+string Net<Dtype>::Forward(const string& input_blob_protos, Dtype* loss) {
+  BlobProtoVector blob_proto_vec;
+  if (net_input_blobs_.size()) {
+    blob_proto_vec.ParseFromString(input_blob_protos);
+    CHECK_EQ(blob_proto_vec.blobs_size(), net_input_blobs_.size())
+        << "Incorrect input size.";
+    for (int i = 0; i < blob_proto_vec.blobs_size(); ++i) {
+      net_input_blobs_[i]->FromProto(blob_proto_vec.blobs(i));
+    }
+  }
+  ForwardPrefilled(loss);
+  blob_proto_vec.Clear();
+  for (int i = 0; i < net_output_blobs_.size(); ++i) {
+    net_output_blobs_[i]->ToProto(blob_proto_vec.add_blobs());
+  }
+  string output;
+  blob_proto_vec.SerializeToString(&output);
+  return output;
 }
 
 template <typename Dtype>
 void Net<Dtype>::BackwardFromTo(int start, int end) {
   CHECK_GE(end, 0);
   CHECK_LT(start, layers_.size());
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
+  std::string none("none");
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
   for (int i = start; i >= end; --i) {
+      // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
+      //fprintf(stderr,"Now Back-Propagating Layer [%s]\n",layer_index_names_[i].c_str());
+      string pullfrom = layers_[i]->layer_param().pullsfrom();
+      if (pullfrom.compare(none)!=0){
+          fprintf(stderr,"Pulling from %s\n",layer_index_names_[layer_names_index_[pullfrom]].c_str());
+          for (int reiter = layer_names_index_[pullfrom]; reiter<=i; reiter++){
+              fprintf(stderr,"Forward layer %s\n",layer_index_names_[reiter].c_str());
+              layers_[reiter]->Forward(bottom_vecs_[reiter],top_vecs_[reiter]);
+          }
+      }
+      // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
     if (layer_need_backward_[i]) {
       layers_[i]->Backward(
           top_vecs_[i], bottom_need_backward_[i], bottom_vecs_[i]);
       if (debug_info_) { BackwardDebugInfo(i); }
     }
+    // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
+    if (layers_[i]->layer_param().deletetop()){
+      //fprintf(stderr,"Deleting top of Layer [%s]\n",layer_index_names_[i].c_str());
+        for (int k = 0; k < top_vecs_[i].size(); k++)
+            top_vecs_[i][k]->RemoveBoth();
+    }
+    // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
   }
+}
+
+template <typename Dtype>
+void Net<Dtype>::InputDebugInfo(const int input_id) {
+  const Blob<Dtype>& blob = *net_input_blobs_[input_id];
+  const string& blob_name = blob_names_[net_input_blob_indices_[input_id]];
+  const Dtype data_abs_val_mean = blob.asum_data() / blob.count();
+  LOG_IF(INFO, Caffe::root_solver())
+      << "    [Forward] "
+      << "Input " << blob_name << " data: " << data_abs_val_mean;
 }
 
 template <typename Dtype>
@@ -849,6 +949,9 @@ void Net<Dtype>::ToProto(NetParameter* param, bool write_diff) const {
   param->Clear();
   param->set_name(name_);
   // Add bottom and top
+  for (int i = 0; i < net_input_blob_indices_.size(); ++i) {
+    param->add_input(blob_names_[net_input_blob_indices_[i]]);
+  }
   DLOG(INFO) << "Serializing " << layers_.size() << " layers";
   for (int i = 0; i < layers_.size(); ++i) {
     LayerParameter* layer_param = param->add_layer();

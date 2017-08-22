@@ -4,6 +4,8 @@
 #include <utility>
 #include <vector>
 
+#include "caffe/data_transformer.hpp"
+#include "caffe/layers/base_data_layer.hpp"
 #include "caffe/layers/flo_data_layer.hpp"
 #include "caffe/util/benchmark.hpp"
 #include "caffe/util/io.hpp"

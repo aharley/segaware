@@ -1,0 +1,68 @@
+NVCC src/caffe/layers/nosp_conv_meanfield_layer.cu
+NVCC src/caffe/layers/nosp_conv_meanfield_iteration.cu
+./include/caffe/util/tvg_util.hpp(36): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(38): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(50): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(51): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(36): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(38): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(50): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(51): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(36): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(38): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(50): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(51): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(36): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(38): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(50): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(51): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(36): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(38): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(50): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(51): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(36): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(38): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(50): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(51): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(36): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(38): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(50): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(51): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(36): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(38): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(50): warning: specifying a default argument on this declaration is nonstandard
+
+./include/caffe/util/tvg_util.hpp(51): warning: specifying a default argument on this declaration is nonstandard
+
+AR -o .build_release/lib/libcaffe.a
+LD -o .build_release/lib/libcaffe.so.1.0.0-rc3

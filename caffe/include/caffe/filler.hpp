@@ -45,38 +45,6 @@ class ConstantFiller : public Filler<Dtype> {
   }
 };
 
-/// @brief Fills a Blob with (x,y) coordinates. 
-template <typename Dtype>
-class XYFiller : public Filler<Dtype> {
- public:
-  explicit XYFiller(const FillerParameter& param)
-      : Filler<Dtype>(param) {}
-  virtual void Fill(Blob<Dtype>* blob) {
-    Dtype* data = blob->mutable_cpu_data();
-    const int count = blob->count();
-    const int height = blob->height();
-    const int width = blob->width();
-    const int channels = blob->channels();
-    const int num = blob->num();
-    CHECK(count);
-    CHECK_EQ(channels, 2)
-      << "XYFiller only works for blobs with 2 channels.";
-    // int pos_count = bottom[3]->count();
-    for (int n=0; n < num; n++) {
-      for (int c=0; c < channels; c++) {
-	for (int j = 0; j < height; j++) {
-	  for (int i = 0; i < width; i++) {
-	    if (c==0)
-	      data[i+j*width+c*height*width+n*c*height*width] = i;
-	    else
-	      data[i+j*width+c*height*width+n*c*height*width] = j;
-	  }
-	}
-      }
-    }
-  }
-};
-
 /// @brief Fills a Blob with uniformly distributed values @f$ x\sim U(a, b) @f$.
 template <typename Dtype>
 class UniformFiller : public Filler<Dtype> {
@@ -290,6 +258,38 @@ class BilinearFiller : public Filler<Dtype> {
     }
     CHECK_EQ(this->filler_param_.sparse(), -1)
          << "Sparsity not supported by this Filler.";
+  }
+};
+
+/// @brief Fills a Blob with (x,y) coordinates. 
+template <typename Dtype>
+class XYFiller : public Filler<Dtype> {
+ public:
+  explicit XYFiller(const FillerParameter& param)
+      : Filler<Dtype>(param) {}
+  virtual void Fill(Blob<Dtype>* blob) {
+    Dtype* data = blob->mutable_cpu_data();
+    const int count = blob->count();
+    const int height = blob->height();
+    const int width = blob->width();
+    const int channels = blob->channels();
+    const int num = blob->num();
+    CHECK(count);
+    CHECK_EQ(channels, 2)
+      << "XYFiller only works for blobs with 2 channels.";
+    // int pos_count = bottom[3]->count();
+    for (int n=0; n < num; n++) {
+      for (int c=0; c < channels; c++) {
+	for (int j = 0; j < height; j++) {
+	  for (int i = 0; i < width; i++) {
+	    if (c==0)
+	      data[i+j*width+c*height*width+n*c*height*width] = i;
+	    else
+	      data[i+j*width+c*height*width+n*c*height*width] = j;
+	  }
+	}
+      }
+    }
   }
 };
 

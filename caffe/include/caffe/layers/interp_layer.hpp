@@ -1,8 +1,6 @@
 #ifndef CAFFE_INTERP_LAYER_HPP_
 #define CAFFE_INTERP_LAYER_HPP_
 
-#include <string>
-#include <utility>
 #include <vector>
 
 #include "caffe/blob.hpp"
@@ -10,7 +8,6 @@
 #include "caffe/proto/caffe.pb.h"
 
 namespace caffe {
-
 /**
  * @brief Changes the spatial resolution by bi-linear interpolation.
  *        The target size is specified in terms of pixels. 
@@ -21,13 +18,13 @@ template <typename Dtype>
 class InterpLayer : public Layer<Dtype> {
  public:
   explicit InterpLayer(const LayerParameter& param)
-      : Layer<Dtype>(param){}
+      : Layer<Dtype>(param) {}
   virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
 
-  virtual inline const char* type() const {return "Interp";}
+  virtual inline const char* type() const { return "Interp"; }
   virtual inline int ExactNumBottomBlobs() const { return 1; }
   virtual inline int ExactNumTopBlobs() const { return 1; }
 
@@ -41,7 +38,6 @@ class InterpLayer : public Layer<Dtype> {
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
   
-  private:
   int num_, channels_;
   int height_in_, width_in_;
   int height_out_, width_out_;
@@ -49,6 +45,6 @@ class InterpLayer : public Layer<Dtype> {
   int height_in_eff_, width_in_eff_;
 };
 
-} //namespace caffe
+}  // namespace caffe
 
-#endif //CAFFE_INTERP_LAYER_HPP_
+#endif  // CAFFE_CONV_LAYER_HPP_

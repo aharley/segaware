@@ -1,18 +1,11 @@
-#ifdef USE_OPENCV
-#include <opencv2/core/core.hpp>
-#endif  // USE_OPENCV
-
+#include <sstream>
 #include <vector>
 
 #include "caffe/layers/mat_write_layer.hpp"
-
-// #include <vector>
-
-// #include "caffe/common.hpp"
-// #include "caffe/layer.hpp"
-// #include "caffe/vision_layers.hpp"
-// #include "caffe/syncedmem.hpp"
-// #include <sstream>
+#include "caffe/util/matio_io.hpp"
+#include <sys/stat.h>
+#include <unistd.h>
+#include <string>
 
 namespace caffe {
 
@@ -50,7 +43,6 @@ template <typename Dtype>
 void MatWriteLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
   if (iter_ % period_ == 0) {
-    LOG(INFO) << "Creating mat " << iter_+1 << "/" << fnames_.size();
     for (int i = 0; i < bottom.size(); ++i) {
       std::ostringstream oss;
       oss << prefix_;
@@ -62,7 +54,12 @@ void MatWriteLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 	oss << "iter_" << iter_;
       }
       oss << "_blob_" << i << ".mat";
-      bottom[i]->ToMat(oss.str().c_str(), false);
+      if (Exists(oss.str().c_str())) {
+	LOG(INFO) << "Creating mat " << iter_+1 << "/" << fnames_.size() << " (" << fnames_[iter_] << ") -- but wait, that exists! let's skip.";
+      } else {
+	LOG(INFO) << "Creating mat " << iter_+1 << "/" << fnames_.size() << " (" << fnames_[iter_] << ")";
+	WriteBlobToMat(oss.str().c_str(), false, bottom[i]);
+      }
     }
   }
   ++iter_;
@@ -75,6 +72,11 @@ void MatWriteLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   return;
 }
 
+template <typename Dtype>
+bool MatWriteLayer<Dtype>::Exists(const std::string& name) {
+  struct stat buffer;   
+  return (stat (name.c_str(), &buffer) == 0); 
+}
 
 INSTANTIATE_CLASS(MatWriteLayer);
 REGISTER_LAYER_CLASS(MatWrite);

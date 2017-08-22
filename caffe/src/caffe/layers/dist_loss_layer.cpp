@@ -122,8 +122,8 @@ template <typename Dtype>
 void DistLossLayer<Dtype>::Reshape(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   LossLayer<Dtype>::Reshape(bottom, top);
-  CHECK_EQ(bottom[0]->count(0), bottom[1]->count(0))
-    << "Inputs must have the same dimension.";
+  // CHECK_EQ(bottom[0]->count(1), bottom[1]->count(1))
+  //     << "Inputs must have the same dimension.";
   diff_.ReshapeLike(*bottom[0]);
   // diff_temp_.ReshapeLike(*bottom[0]);
   // temp_.ReshapeLike(*bottom[0]);
@@ -136,7 +136,7 @@ void DistLossLayer<Dtype>::Forward_cpu(
   int height_col = bottom[0]->height();
   int width_col = bottom[0]->width();
   int channels_col = bottom[0]->channels();
-  int count = bottom[0]->count(1);
+  int count = bottom[0]->count();
   const Dtype* dist_col = bottom[0]->cpu_data();
   Dtype* parity_col = bottom[1]->mutable_cpu_data();
   Dtype* diff_col = diff_.mutable_cpu_data();
@@ -168,18 +168,13 @@ void DistLossLayer<Dtype>::Forward_cpu(
     }
   }
   top[0]->mutable_cpu_data()[0] = loss / count;
-
-  // save from exploding loss
-  if (loss/count > 1000000)
-    LOG(ERROR) << "Loss is too high!";
-  CHECK_LT(loss/count, 1000000);
 }
   
 template <typename Dtype>
 void DistLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down,
     const vector<Blob<Dtype>*>& bottom) {
-  int count = bottom[0]->count(1);
+  int count = bottom[0]->count();
   Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
   const Dtype* diff_col = diff_.cpu_data();
   caffe_copy(count,diff_col,bottom_diff);

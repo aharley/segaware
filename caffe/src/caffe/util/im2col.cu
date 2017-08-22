@@ -261,10 +261,10 @@ __global__ void col2im_gpu_kernel(const int n, const Dtype* data_col,
     int kernel_extent_h = (kernel_h - 1) * dilation_h + 1;
     // compute the start and end of the output
     const int w_col_start =
-      (w_im < kernel_extent_w) ? 0 : (w_im - kernel_extent_w) / stride_w + 1;
+        (w_im < kernel_extent_w) ? 0 : (w_im - kernel_extent_w) / stride_w + 1;
     const int w_col_end = min(w_im / stride_w + 1, width_col);
     const int h_col_start =
-      (h_im < kernel_extent_h) ? 0 : (h_im - kernel_extent_h) / stride_h + 1;
+        (h_im < kernel_extent_h) ? 0 : (h_im - kernel_extent_h) / stride_h + 1;
     const int h_col_end = min(h_im / stride_h + 1, height_col);
     // TODO: use LCM of stride and dilation to avoid unnecessary loops
     for (int h_col = h_col_start; h_col < h_col_end; h_col += 1) {
@@ -295,7 +295,6 @@ void col2im_gpu(const Dtype* data_col, const int channels,
   int width_col = (width + 2 * pad_w - (dilation_w * (kernel_w - 1) + 1)) /
       stride_w + 1;
   int num_kernels = channels * height * width;
-
   // To avoid involving atomic operations, we will launch one kernel per
   // bottom dimension, and then in the kernel add up the top dimensions.
   // NOLINT_NEXT_LINE(whitespace/operators)

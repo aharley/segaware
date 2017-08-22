@@ -1,6 +1,7 @@
 #ifndef CAFFE_MAT_WRITE_LAYER_HPP_
 #define CAFFE_MAT_WRITE_LAYER_HPP_
 
+#include <string>
 #include <vector>
 
 #include "caffe/blob.hpp"
@@ -9,13 +10,9 @@
 
 namespace caffe {
 
-/**
- * @brief A layer for learning "mat_writedings" of one-hot vector input.
- *        Equivalent to an InnerProductLayer with one-hot vectors as input, but
- *        for efficiency the input is the "hot" index of each column itself.
- *
- * TODO(dox): thorough documentation for Forward, Backward, and proto params.
- */
+/*
+  MatWriteLayer
+*/
 template <typename Dtype>
 class MatWriteLayer : public Layer<Dtype> {
  public:
@@ -33,6 +30,7 @@ class MatWriteLayer : public Layer<Dtype> {
       const vector<Blob<Dtype>*>& top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+  virtual bool Exists(const std::string& name);
 
   int iter_;
   int period_;

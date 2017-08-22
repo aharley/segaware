@@ -65,10 +65,6 @@ void EltwiseLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   default:
     LOG(FATAL) << "Unknown elementwise operation.";
   }
-  // const Dtype* embs = top[0]->cpu_data();
-  // for (int i=195; i < 205; i++){
-  //   LOG(ERROR) << "for example, elt[" << i << "] = " << embs[i];
-  // }
 }
 
 template <typename Dtype>

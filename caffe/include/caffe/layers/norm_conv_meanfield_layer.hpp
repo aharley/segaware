@@ -9,7 +9,7 @@
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 
-#include "caffe/util/modified_permutohedral.hpp"
+//#include "caffe/util/modified_permutohedral.hpp"
 #include "caffe/layers/norm_conv_meanfield_iteration.hpp"
 #include <boost/shared_array.hpp>
 
@@ -43,10 +43,10 @@ class NormConvMeanfieldLayer : public Layer<Dtype> {
       const vector<Blob<Dtype>*>& top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
-  // virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
-  //     const vector<Blob<Dtype>*>& top);
-  // virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-  //     const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+  virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
+  virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
   // virtual void compute_spatial_kernel(float* const output_kernel);
   // virtual void compute_bilateral_kernel(const Blob<Dtype>* const rgb_blob, const int n, float* const output_kernel);
@@ -116,9 +116,9 @@ class NormConvMeanfieldLayer : public Layer<Dtype> {
   // shared_ptr<Im2distLayer<Dtype> > im2dist_layer_;
   // shared_ptr<Im2colLayer<Dtype> > im2col_layer_;
 
-  shared_ptr<ModifiedPermutohedral> spatial_lattice_;
+  //shared_ptr<ModifiedPermutohedral> spatial_lattice_;
   boost::shared_array<float> bilateral_kernel_buffer_;
-  vector<shared_ptr<ModifiedPermutohedral> > bilateral_lattices_;
+  //vector<shared_ptr<ModifiedPermutohedral> > bilateral_lattices_;
 };
 
 }  // namespace caffe

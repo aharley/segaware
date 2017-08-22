@@ -27,25 +27,6 @@ message BlobProtoVector {
   repeated BlobProto blobs = 1;
 }
 
-message ChannelReduceParameter {
-  optional uint32 num_channels = 1 [default = 1];
-  enum Op {
-    SUM = 0;
-    MAX = 1;
-  }
-  optional Op operation = 2 [default = MAX];
-}
-
-message DistLossParameter {
-  optional uint32 ignore_label = 1; // If specified, ignore instances with the given label.
-
-  required float alpha = 2; // the "close" threshold for similar pixels
-  required float beta = 3; // the "far" threshold for similar pixels
-
-  // stuff like stride and kernel size can be captured with conv_param
-
-}
-
 message Datum {
   optional int32 channels = 1;
   optional int32 height = 2;
@@ -82,12 +63,12 @@ message FillerParameter {
 
 message NetParameter {
   optional string name = 1; // consider giving the network a name
-  // DEPRECATED. See InputParameter. The input blobs to the network.
+  // The input blobs to the network.
   repeated string input = 3;
-  // DEPRECATED. See InputParameter. The shape of the input blobs.
+  // The shape of the input blobs.
   repeated BlobShape input_shape = 8;
 
-  // 4D input dimensions -- deprecated.  Use "input_shape" instead.
+  // 4D input dimensions -- deprecated.  Use "shape" instead.
   // If specified, for each input blob there should be four
   // values specifying the num, channels, height and width of the input blob.
   // Thus, there should be a total of (4 * #input) numbers.
@@ -325,7 +306,7 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available layer-specific ID: 157 (last added: norm_conv_meanfield_param)
+// LayerParameter next available layer-specific ID: 152 (last added: mat_read_param)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -334,6 +315,12 @@ message LayerParameter {
 
   // The train / test phase for computation.
   optional Phase phase = 10;
+
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
+  optional bool     deletetop    = 696969 [default = false];
+  optional bool     deletebottom = 69696  [default = false];
+  optional string   pullsfrom    = 6969   [default = 'none'];
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
 
   // The amount of weight to assign each top blob in the objective.
   // Each layer assigns a default value, usually of either 0 or 1,
@@ -373,60 +360,63 @@ message LayerParameter {
   // engine parameter for selecting the implementation.
   // The default for the engine is set by the ENGINE switch at compile-time.
   optional AccuracyParameter accuracy_param = 102;
+  optional AdaptiveBiasChannelParameter adaptive_bias_channel_param = 148;
   optional ArgMaxParameter argmax_param = 103;
   optional BatchNormParameter batch_norm_param = 139;
   optional BiasParameter bias_param = 141;
-  optional ChannelReduceParameter channel_reduce_param = 151;
+  optional BiasChannelParameter bias_channel_param = 149;
   optional ConcatParameter concat_param = 104;
   optional ContrastiveLossParameter contrastive_loss_param = 105;
   optional ConvolutionParameter convolution_param = 106;
-  optional CropParameter crop_param = 154;
   optional DataParameter data_param = 107;
-  optional DistLossParameter dist_loss_param = 147;
+  optional DenseCRFParameter dense_crf_param = 146;
+  optional DomainTransformParameter domain_transform_param = 147;
   optional DropoutParameter dropout_param = 108;
   optional DummyDataParameter dummy_data_param = 109;
   optional EltwiseParameter eltwise_param = 110;
   optional ELUParameter elu_param = 140;
   optional EmbedParameter embed_param = 137;
   optional ExpParameter exp_param = 111;
-  optional FourImageDataParameter four_image_data_param = 144;
   optional FlattenParameter flatten_param = 135;
   optional HDF5DataParameter hdf5_data_param = 112;
   optional HDF5OutputParameter hdf5_output_param = 113;
   optional HingeLossParameter hinge_loss_param = 114;
-  optional Im2distParameter im2dist_param = 145;
-  optional Im2parityParameter im2parity_param = 146;
   optional ImageDataParameter image_data_param = 115;
   optional InfogainLossParameter infogain_loss_param = 116;
   optional InnerProductParameter inner_product_param = 117;
-  optional InputParameter input_param = 143;
-  optional InterpParameter interp_param = 149;
+  optional InterpParameter interp_param = 143;
+  optional L1LossParameter l1_loss_param = 3001;
+  optional AugmentationParameter aug_param = 3002;
   optional LogParameter log_param = 134;
   optional LRNParameter lrn_param = 118;
-  optional MatWriteParameter mat_write_param = 150;
+  optional MatReadParameter mat_read_param = 151;
+  optional MatWriteParameter mat_write_param = 145;
   optional MemoryDataParameter memory_data_param = 119;
-  optional MultiStageMeanfieldParameter multi_stage_meanfield_param = 155;
-  optional NormConvMeanfieldParameter norm_conv_meanfield_param = 156;
   optional MVNParameter mvn_param = 120;
-  optional NormConvParameter norm_conv_param = 153;
   optional PoolingParameter pooling_param = 121;
   optional PowerParameter power_param = 122;
   optional PReLUParameter prelu_param = 131;
   optional PythonParameter python_param = 130;
   optional ReductionParameter reduction_param = 136;
   optional ReLUParameter relu_param = 123;
-  optional ReplicateParameter replicate_param = 152;
   optional ReshapeParameter reshape_param = 133;
   optional ScaleParameter scale_param = 142;
+  optional SegAccuracyParameter seg_accuracy_param = 144;
   optional SigmoidParameter sigmoid_param = 124;
   optional SoftmaxParameter softmax_param = 125;
   optional SPPParameter spp_param = 132;
   optional SliceParameter slice_param = 126;
   optional TanHParameter tanh_param = 127;
-  optional TwoImageDataParameter two_image_data_param = 148;
   optional ThresholdParameter threshold_param = 128;
   optional TileParameter tile_param = 138;
+  optional UniqueLabelParameter unique_label_param = 150;
   optional WindowDataParameter window_data_param = 129;
+  optional ChannelReduceParameter channel_reduce_param = 152;
+  optional DistLossParameter dist_loss_param = 153;
+  optional Im2distParameter im2dist_param = 154;
+  optional Im2parityParameter im2parity_param = 155;
+  optional NormConvParameter norm_conv_param = 156;
+  optional NormConvMeanfieldParameter norm_conv_meanfield_param = 157;
 }
 
 // Message that stores parameters used to apply transformation
@@ -450,6 +440,13 @@ message TransformationParameter {
   optional bool force_color = 6 [default = false];
   // Force the decoded image to have 1 color channels.
   optional bool force_gray = 7 [default = false];
+  // If we want to do data augmentation, Scaling factor for randomly scaling input images
+  repeated float scale_factors = 8;
+  // the width for cropped region
+  optional uint32 crop_width = 9 [default = 0];
+  // the height for cropped region
+  optional uint32 crop_height = 10 [default = 0];
+
 }
 
 // Message that stores parameters shared by loss layers
@@ -464,7 +461,7 @@ message LossParameter {
     // Outputs that receive the ignore label will NOT be ignored in computing
     // the normalization factor.
     FULL = 0;
-    // Divide by the total number of output locations that do not take the
+    // Divide by the total number of output locations that do not take the 
     // ignore_label.  If ignore_label is not set, this behaves like FULL.
     VALID = 1;
     // Divide by the batch size.
@@ -477,8 +474,6 @@ message LossParameter {
   // is not specified, then setting this to false will be equivalent to
   // normalization = BATCH_SIZE to be consistent with previous behavior.
   optional bool normalize = 2;
-  // specify the data source for loss_weights_
-  optional string weight_source = 4;
 }
 
 // Messages that store parameters used by individual layer types follow, in
@@ -501,6 +496,14 @@ message AccuracyParameter {
   optional int32 ignore_label = 3;
 }
 
+message AdaptiveBiasChannelParameter {
+  optional int32 num_iter = 1 [default = 1];
+  optional float bg_portion = 2 [default = 0.2];
+  optional float fg_portion = 3 [default = 0.2];
+  optional bool suppress_others = 4 [default = true];
+  optional float margin_others = 5 [default = 1e-5];
+}
+
 message ArgMaxParameter {
   // If true produce pairs (argmax, maxval)
   optional bool out_max_val = 1 [default = false];
@@ -510,6 +513,22 @@ message ArgMaxParameter {
   // By default ArgMaxLayer maximizes over the flattened trailing dimensions
   // for each index of the first / num dimension.
   optional int32 axis = 3;
+}
+
+message BiasChannelParameter {
+  // Score biases. Separate values for BG / FG
+  optional float bg_bias = 1 [default = 1.];
+  optional float fg_bias = 2 [default = 2.];
+  // will ignore labels with this value when adding bias
+  repeated int32 ignore_label = 3;
+  enum LabelType {
+    IMAGE = 1;
+    PIXEL = 2;
+  }
+  optional LabelType label_type = 4 [default = IMAGE];
+  // If the dataset defines generic background label or not.
+  // The default value is defined for PASCAL VOC segmentation
+  optional int32 background_label = 6 [default = 0];
 }
 
 message ConcatParameter {
@@ -533,6 +552,7 @@ message BatchNormParameter {
   // Small value to add to the variance estimate so that we don't divide by
   // zero.
   optional float eps = 3 [default = 1e-5];
+  optional bool update_global_stats = 4 [default = false];
 }
 
 message BiasParameter {
@@ -579,35 +599,12 @@ message ContrastiveLossParameter {
   optional bool legacy_version = 2 [default = false];
 }
 
-message NormConvParameter {
-  optional bool scale_term = 1 [default = true]; // Whether to use a scale term for the mask
-
-  // For normalized convolution, we need a norm type for calculating the applicability. 
-  enum Norm {
-    L1 = 1;
-    L2 = 2;
-  }
-  // Specify the Norm to use L1 or L2
-  optional Norm norm = 2 [default = L2];
-  optional FillerParameter scale_filler = 3; // The filler for the mask scale
-
-  //optional float scale = 4; // alt mask scale filler; convenient for meanfield inference
-  // actually, let's put all the meanfield stuff in one place. we'll redefine params there 
-  // as needed.
-
-  optional bool remove_center = 4 [default = false]; // whether to set center-center dist as inf
-  optional bool remove_bounds = 5 [default = false]; // whether to set boundary dist as inf
-}
-
 message ConvolutionParameter {
   optional uint32 num_output = 1; // The number of outputs for the layer
   optional bool bias_term = 2 [default = true]; // whether to have bias terms
 
   // If the bottom is an im2col layer, the job for convolution is a little simpler.
   optional bool bottom_is_im2col = 19 [default = false]; 
-
-  // If we enable normalized convolution, the input is treated differently.
-  optional bool normalized_convolution = 20 [default = false];
 
   // Pad, kernel size, and stride are all given as a single value for equal
   // dimensions in all spatial dimensions, or once per spatial dimension.
@@ -658,24 +655,6 @@ message ConvolutionParameter {
   optional bool force_nd_im2col = 17 [default = false];
 }
 
-message CropParameter {
-  // To crop, elements of the first bottom are selected to fit the dimensions
-  // of the second, reference bottom. The crop is configured by
-  // - the crop `axis` to pick the dimensions for cropping
-  // - the crop `offset` to set the shift for all/each dimension
-  // to align the cropped bottom with the reference bottom.
-  // All dimensions up to but excluding `axis` are preserved, while
-  // the dimensions including and trailing `axis` are cropped.
-  // If only one `offset` is set, then all dimensions are offset by this amount.
-  // Otherwise, the number of offsets must equal the number of cropped axes to
-  // shift the crop in each dimension accordingly.
-  // Note: standard dimensions are N,C,H,W so the default is a spatial crop,
-  // and `axis` may be negative to index from the end (e.g., -1 for the last
-  // axis).
-  optional int32 axis = 1 [default = 2];
-  repeated uint32 offset = 2;
-}
-
 message DataParameter {
   enum DB {
     LEVELDB = 0;
@@ -708,6 +687,31 @@ message DataParameter {
   // Prefetch queue (Number of batches to prefetch to host memory, increase if
   // data access bandwidth varies).
   optional uint32 prefetch = 10 [default = 4];
+}
+
+message DenseCRFParameter {
+  // max number of iteration for message passing
+  optional int32 max_iter = 1 [default = 10];
+  // positional std and weight for "Positional" filter (color-independent)
+  repeated float pos_xy_std = 2;
+  repeated float pos_w = 3;
+  // positional std, color std and weight for Bilateral filter
+  repeated float bi_xy_std = 4;
+  repeated float bi_rgb_std = 5;
+  repeated float bi_w = 6; 
+  // output is probability or score (score = log(prob))
+  optional bool output_probability = 7 [default = true];
+}
+
+message DomainTransformParameter {
+  // Max number of iteration for filtering.
+  optional int32 num_iter = 1 [default = 3];
+  // Standard deviation for spatial domain.
+  optional float spatial_sigma = 2 [default = 50];
+  // Standard deviation for range domain.
+  optional float range_sigma = 3 [default = 5];
+  // minimum weight value (to avoid zero gradient for ref_grad_data)
+  optional float min_weight = 4 [default = 0];
 }
 
 message DropoutParameter {
@@ -791,15 +795,6 @@ message FlattenParameter {
   optional int32 end_axis = 2 [default = -1];
 }
 
-/// Message that stores parameters used by FourImageDataLayer
-message FourImageDataParameter {
-  // Specify if each image is color or gray.
-  optional bool first_is_color = 1 [default = true];
-  optional bool second_is_color = 2 [default = true];
-  optional bool third_is_color = 3 [default = false];
-  optional bool fourth_is_color = 4 [default = false];
-}
-
 // Message that stores parameters used by HDF5DataLayer
 message HDF5DataParameter {
   // Specify the data source.
@@ -828,24 +823,6 @@ message HingeLossParameter {
   optional Norm norm = 1 [default = L1];
 }
 
-/// Message that stores parameters used by Im2distLayer
-message Im2distParameter {
-  enum Norm {
-    L1 = 1;
-    L2 = 2;
-  }
-  // Specify the Norm to use L1 or L2
-  optional Norm norm = 1 [default = L2];
-
-  optional bool remove_center = 2 [default = false]; // whether to set center dist as inf
-  optional bool remove_bounds = 3 [default = false]; // whether to set boundary dist as inf
-}
-
-/// Message that stores parameters used by Im2parityLayer
-message Im2parityParameter {
-  optional uint32 ignore_label = 1;
-}
-
 message ImageDataParameter {
   // Specify the data source.
   optional string source = 1;
@@ -863,6 +840,16 @@ message ImageDataParameter {
   optional uint32 new_width = 10 [default = 0];
   // Specify if the images are color or gray
   optional bool is_color = 11 [default = true];
+
+  // This is the value set for pixels or images where we don't know the label
+  optional int32 ignore_label = 15 [default = 255];
+  enum LabelType {
+    NONE = 0;
+    IMAGE = 1;
+    PIXEL = 2;
+  }
+  optional LabelType label_type = 16 [default = IMAGE];
+
   // DEPRECATED. See TransformationParameter. For data pre-processing, we can do
   // simple scaling and subtracting the data mean, if provided. Note that the
   // mean subtraction is always carried out before scaling.
@@ -899,21 +886,13 @@ message InnerProductParameter {
   optional bool transpose = 6 [default = false];
 }
 
-message InputParameter {
-  // This layer produces N >= 1 top blob(s) to be assigned manually.
-  // Define N shapes to set a shape for each top.
-  // Define 1 shape to set the same shape for every top.
-  // Define no shape to defer to reshaping manually.
-  repeated BlobShape shape = 1;
-}
-
 message InterpParameter {
-  optional int32 height = 1 [default = 0]; //Height of output
-  optional int32 width = 2 [default = 0]; //Width of output
-  optional int32 zoom_factor = 3 [default = 1]; //zoom factor
-  optional int32 shrink_factor = 4 [default = 1]; //shrink factor
-  optional int32 pad_beg = 5 [default = 0]; //padding at begin of input
-  optional int32 pad_end = 6 [default = 0]; //padding at end of input
+  optional int32 height = 1 [default = 0]; // Height of output
+  optional int32 width = 2 [default = 0]; // Width of output
+  optional int32 zoom_factor = 3 [default = 1]; // zoom factor
+  optional int32 shrink_factor = 4 [default = 1]; // shrink factor
+  optional int32 pad_beg = 5 [default = 0]; // padding at begin of input
+  optional int32 pad_end = 6 [default = 0]; // padding at end of input
 }
 
 // Message that stores parameters used by LogLayer
@@ -945,7 +924,13 @@ message LRNParameter {
   optional Engine engine = 6 [default = DEFAULT];
 }
 
-// Message that stores parameters used by MatWriteLayer
+message MatReadParameter {
+  required string prefix = 1;
+  optional string source = 2 [default = ""];
+  optional int32 strip = 3 [default = 0];
+  optional int32 batch_size = 4 [default = 1];
+}
+
 message MatWriteParameter {
   required string prefix = 1;
   optional string source = 2 [default = ""];
@@ -958,104 +943,6 @@ message MemoryDataParameter {
   optional uint32 channels = 2;
   optional uint32 height = 3;
   optional uint32 width = 4;
-}
-
-// Message that stores parameters used by MultiStageMeanfieldLayer
-message MultiStageMeanfieldParameter {
-  enum Mode {
-    POTTS = 0;
-  }
-  optional Mode compatibility_mode = 1 [default = POTTS];
-  optional float threshold = 2;
-  
-  required float theta_alpha = 3 [default = 10.];
-  required float theta_beta = 4 [default = 10.];
-  required float theta_gamma = 5 [default = 10.];
-  
-  required uint32 num_iterations = 6 [default = 1];
-  optional float spatial_filter_weight = 7 [default = 1];
-  optional float bilateral_filter_weight = 8 [default = 1];
-  
-  optional float forced_spatial_filter_weight = 9;
-  optional float forced_bilateral_filter_weight = 10;
-
-  optional float iter_multiplier = 11 [default = 1];
-
-  // We need a bunch of params for normconv. We'll repeat params for each normconv.
-  enum Norm {
-    L1 = 1;
-    L2 = 2;
-  }
-  repeated Norm norm = 12;
-  repeated bool scale_term = 13; // Whether to use a scale term for the mask
-  repeated float scale = 14; // simple scale filler
-  repeated bool remove_center = 15; // in this context, these should be true, but 
-  repeated bool remove_bounds = 16; // to avoid confusion we'll stick with the old.
-
-  repeated bool bias_term = 17; // this should be false
-
-  repeated uint32 pad = 18; // The padding size; defaults to 0
-  repeated uint32 kernel_size = 19; // The kernel size
-  repeated uint32 stride = 20; // The stride; defaults to 1
-  repeated uint32 dilation = 21; // The dilation; defaults to 1
-
-  repeated uint32 group = 22; // The group size for group conv
-
-  repeated FillerParameter weight_filler = 23; // The filler for the weight
-  repeated FillerParameter bias_filler = 24; // The filler for the bias
-  enum Engine {
-    DEFAULT = 0;
-    CAFFE = 1;
-    CUDNN = 2;
-  }
-  optional Engine engine = 25 [default = DEFAULT];
-}
-
-// Message that stores parameters used by NormConvMeanfieldLayer
-message NormConvMeanfieldParameter {
-  enum Mode {
-    POTTS = 0;
-  }
-  optional Mode compatibility_mode = 1 [default = POTTS];
-  optional float threshold = 2;
-  
-  required uint32 num_iterations = 6 [default = 1];
-  optional float spatial_filter_weight = 7 [default = 1];
-  optional float bilateral_filter_weight = 8 [default = 1];
-  
-  optional float forced_spatial_filter_weight = 9;
-  optional float forced_bilateral_filter_weight = 10;
-
-  optional float iter_multiplier = 11 [default = 1];
-
-  // We need a bunch of params for normconv. We'll repeat params for each normconv.
-  enum Norm {
-    L1 = 1;
-    L2 = 2;
-  }
-  repeated Norm norm = 12;
-  repeated bool scale_term = 13; // Whether to use a scale term for the mask
-  repeated float scale = 14; // simple scale filler
-  repeated bool remove_center = 15; // in this context, these should be true, but 
-  repeated bool remove_bounds = 16; // to avoid confusion we'll stick with the old.
-
-  repeated bool bias_term = 17; // this should be false
-
-  repeated uint32 pad = 18; // The padding size; defaults to 0
-  repeated uint32 kernel_size = 19; // The kernel size
-  repeated uint32 stride = 20; // The stride; defaults to 1
-  repeated uint32 dilation = 21; // The dilation; defaults to 1
-
-  repeated uint32 group = 22; // The group size for group conv
-
-  repeated FillerParameter weight_filler = 23; // The filler for the weight
-  repeated FillerParameter bias_filler = 24; // The filler for the bias
-  enum Engine {
-    DEFAULT = 0;
-    CAFFE = 1;
-    CUDNN = 2;
-  }
-  optional Engine engine = 25 [default = DEFAULT];
 }
 
 message MVNParameter {
@@ -1228,15 +1115,6 @@ message ReshapeParameter {
   optional int32 num_axes = 3 [default = -1];
 }
 
-message ReplicateParameter {
-  // The axis along which to concatenate -- may be negative to index from the
-  // end (e.g., -1 for the last axis).  Other axes must have the
-  // same dimension for all the bottom blobs.
-  // By default, ReplicateLayer concatenates blobs along the "channels" axis (1).
-  optional int32 axis = 2 [default = 1];
-  required int32 num_copies = 3 [default = 2];
-}
-
 message ScaleParameter {
   // The first axis of bottom[0] (the first input Blob) along which to apply
   // bottom[1] (the second input Blob).  May be negative to index from the end
@@ -1272,6 +1150,18 @@ message ScaleParameter {
   // may be more efficient).  Initialized with bias_filler (defaults to 0).
   optional bool bias_term = 4 [default = false];
   optional FillerParameter bias_filler = 5;
+}
+
+message SegAccuracyParameter {
+  enum AccuracyMetric {
+    PixelAccuracy = 0;
+    ClassAccuracy = 1;
+    PixelIOU = 2;
+  }
+  optional AccuracyMetric metric = 1 [default = PixelAccuracy];
+  // will ignore pixels with this value when computing accuracy
+  repeated int32 ignore_label = 2;
+  optional bool reset = 3 [default = true];
 }
 
 message SigmoidParameter {
@@ -1318,13 +1208,6 @@ message TanHParameter {
   optional Engine engine = 1 [default = DEFAULT];
 }
 
-/// Message that stores parameters used by TwoImageDataLayer
-message TwoImageDataParameter {
-  // Specify if each image is color or gray.
-  optional bool first_is_color = 1 [default = true];
-  optional bool second_is_color = 2 [default = false];
-}
-
 // Message that stores parameters used by TileLayer
 message TileParameter {
   // The index of the axis to tile.
@@ -1337,6 +1220,12 @@ message TileParameter {
 // Message that stores parameters used by ThresholdLayer
 message ThresholdParameter {
   optional float threshold = 1 [default = 0]; // Strictly positive values
+}
+
+message UniqueLabelParameter {
+  required int32 max_labels = 1;
+  repeated int32 ignore_label = 2;
+  repeated float force_label = 3;
 }
 
 message WindowDataParameter {
@@ -1583,4 +1472,138 @@ message PReLUParameter {
   optional FillerParameter filler = 1;
   // Whether or not slope paramters are shared across channels.
   optional bool channel_shared = 2 [default = false];
+}
+
+
+/// Message that stores parameters used by Im2distLayer
+message Im2distParameter {
+  enum Norm {
+    L1 = 1;
+    L2 = 2;
+  }
+  // Specify the Norm to use L1 or L2
+  optional Norm norm = 1 [default = L2];
+
+  optional bool remove_center = 2 [default = false]; // whether to set center dist as inf
+  optional bool remove_bounds = 3 [default = false]; // whether to set boundary dist as inf
+}
+
+/// Message that stores parameters used by Im2parityLayer
+message Im2parityParameter {
+  optional uint32 ignore_label = 1;
+}
+
+message DistLossParameter {
+  optional uint32 ignore_label = 1; // If specified, ignore instances with the given label.
+
+  required float alpha = 2; // the "close" threshold for similar pixels
+  required float beta = 3; // the "far" threshold for similar pixels
+
+  // stuff like stride and kernel size can be captured with conv_param
+
+}
+
+message NormConvParameter {
+  optional bool scale_term = 1 [default = true]; // Whether to use a scale term for the mask
+
+  // For normalized convolution, we need a norm type for calculating the applicability. 
+  enum Norm {
+    L1 = 1;
+    L2 = 2;
+  }
+  // Specify the Norm to use L1 or L2
+  optional Norm norm = 2 [default = L2];
+  optional FillerParameter scale_filler = 3; // The filler for the mask scale
+
+  //optional float scale = 4; // alt mask scale filler; convenient for meanfield inference
+  // actually, let's put all the meanfield stuff in one place. we'll redefine params there 
+  // as needed.
+
+  optional bool remove_center = 4 [default = false]; // whether to set center-center dist as inf
+  optional bool remove_bounds = 5 [default = false]; // whether to set boundary dist as inf
+}
+
+// Message that stores parameters used by NormConvMeanfieldLayer
+message NormConvMeanfieldParameter {
+  enum Mode {
+    POTTS = 0;
+  }
+  optional Mode compatibility_mode = 1 [default = POTTS];
+  optional float threshold = 2;
+  
+  required uint32 num_iterations = 6 [default = 1];
+  optional float spatial_filter_weight = 7 [default = 1];
+  optional float bilateral_filter_weight = 8 [default = 1];
+  
+  optional float forced_spatial_filter_weight = 9;
+  optional float forced_bilateral_filter_weight = 10;
+
+  optional float iter_multiplier = 11 [default = 1];
+
+  // We need a bunch of params for normconv. We'll repeat params for each normconv.
+  enum Norm {
+    L1 = 1;
+    L2 = 2;
+  }
+  repeated Norm norm = 12;
+  repeated bool scale_term = 13; // Whether to use a scale term for the mask
+  repeated float scale = 14; // simple scale filler
+  repeated bool remove_center = 15; // in this context, these should be true, but 
+  repeated bool remove_bounds = 16; // to avoid confusion we'll stick with the old.
+
+  repeated bool bias_term = 17; // this should be false
+
+  repeated uint32 pad = 18; // The padding size; defaults to 0
+  repeated uint32 kernel_size = 19; // The kernel size
+  repeated uint32 stride = 20; // The stride; defaults to 1
+  repeated uint32 dilation = 21; // The dilation; defaults to 1
+
+  repeated uint32 group = 22; // The group size for group conv
+
+  repeated FillerParameter weight_filler = 23; // The filler for the weight
+  repeated FillerParameter bias_filler = 24; // The filler for the bias
+  enum Engine {
+    DEFAULT = 0;
+    CAFFE = 1;
+    CUDNN = 2;
+  }
+  optional Engine engine = 25 [default = DEFAULT];
+}
+
+message ChannelReduceParameter {
+  optional uint32 num_channels = 1 [default = 1];
+  enum Op {
+    SUM = 0;
+    MAX = 1;
+  }
+  optional Op operation = 2 [default = MAX];
+}
+// Message that stores parameters used by L1LossLayer
+message L1LossParameter {
+  optional bool l2_per_location = 1 [default = false];
+  optional bool l2_prescale_by_channels = 2 [default = false]; // Old style
+  optional bool normalize_by_num_entries = 3 [default = false]; // if we want to normalize not by batch size, but by the number of non-NaN entries
+  optional float epsilon = 4 [default = 1e-2]; // constant for smoothing near zero
+  optional float plateau = 3001 [default = 0]; // L1 Errors smaller than plateau-value will result in zero loss and no gradient
+}
+
+message AugmentationParameter{
+  // The number of transformations to perform
+  optional int32 num_transformations = 1 [default = 2]; // Strictly positive values
+  optional float max_translation = 2 [default = 0.2]; //Define the maximum translation parameter
+  optional float min_translation = 3 [default = -0.2]; //Define the minimum translation parameter
+  optional float max_rotation = 4 [default = 17.0]; //Define the maximum rotation angle
+  optional float min_rotation = 5 [default = -17.0]; //Define the minimum rotation angle
+  optional float max_scaling = 6 [default = 2.0]; //Define the maximum scaling
+  optional float min_scaling = 7 [default = 0.9]; //Define the minimum scaling
+  optional float max_mcc = 8 [default = 2.0]; //Define the maximum multiplicative color changes
+  optional float min_mcc = 9 [default = 0.5]; //Define the minimum multiplicative color changes
+  optional float max_gamma = 10 [default = 1.5]; //Define the maximum gamma
+  optional float min_gamma = 11 [default = 0.7]; //Define the minimum gamma
+  optional float max_gaussian = 12 [default = 0.04]; //Define the maximum gaussian noise sigma
+  optional float min_gaussian = 13 [default = 0.0]; //Define the minimum gaussian noise sigma
+  optional float max_contrast = 14 [default = 0.4]; //Define the maximum contrast
+  optional float min_contrast = 15 [default = -0.8]; //Define the minimum contrast
+  optional float max_brightness = 16 [default = 0.2]; //Define the maximum brightness
+  optional float min_brightness = 17 [default = 0.0]; // Define the minimum brightness
 }

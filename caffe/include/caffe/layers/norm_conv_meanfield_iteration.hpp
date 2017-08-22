@@ -9,7 +9,7 @@
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 
-#include "caffe/util/modified_permutohedral.hpp"
+//#include "caffe/util/modified_permutohedral.hpp"
 #include <boost/shared_array.hpp>
 #include "caffe/layers/eltwise_layer.hpp"
 #include "caffe/layers/softmax_layer.hpp"
@@ -56,12 +56,12 @@ class NormConvMeanfieldIteration {
 
   virtual void Forward_cpu();
   virtual void Backward_cpu();
-  // // virtual void Forward_gpu();
-  // // virtual void Backward_gpu();
-  // virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
-  //     const vector<Blob<Dtype>*>& top);
-  // virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-  //     const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+  // virtual void Forward_gpu();
+  // virtual void Backward_gpu();
+  virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
+  virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
   // A quick hack. This should be properly encapsulated.
   vector<shared_ptr<Blob<Dtype> > >& blobs() {

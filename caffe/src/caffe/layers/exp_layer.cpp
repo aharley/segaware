@@ -41,18 +41,6 @@ void ExpLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   if (outer_scale_ != Dtype(1)) {
     caffe_scal(count, outer_scale_, top_data);
   }
-
-  const Dtype* embs = top[0]->cpu_data();
-  for (int i=0; i < 10; i++){
-    LOG(ERROR) << "for example, exp[" << i << "] = " << embs[i];
-  }
-  // for (int i=100000; i < 100010; i++){
-  //   LOG(ERROR) << "for example, exp[" << i << "] = " << embs[i];
-  // }
-  // for (int i=200000; i < 200010; i++){
-  //   LOG(ERROR) << "for example, exp[" << i << "] = " << embs[i];
-  // }
-
 }
 
 template <typename Dtype>

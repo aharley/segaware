@@ -20,8 +20,7 @@ ITERS=1456 # voc test
 ITER=5000
 
 EXP=segaware
-# CAFFE_DIR=~/segaware/caffe
-CAFFE_DIR=~/segaware/caffe2
+CAFFE_DIR=~/segaware/caffe
 CAFFE_BIN=${CAFFE_DIR}/build/tools/caffe.bin
 
 

@@ -111,17 +111,14 @@ void Im2colLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   const int* stride_data = stride_.cpu_data();
   const int* pad_data = pad_.cpu_data();
   const int* dilation_data = dilation_.cpu_data();
-
   for (int i = 0; i < num_spatial_axes_; ++i) {
     top_shape[channel_axis_] *= kernel_shape_data[i];
-
     const int input_dim = bottom[0]->shape(channel_axis_ + i + 1);
     const int kernel_extent = dilation_data[i] * (kernel_shape_data[i] - 1) + 1;
     const int output_dim = (input_dim + 2 * pad_data[i] - kernel_extent)
         / stride_data[i] + 1;
     top_shape[channel_axis_ + i + 1] = output_dim;
   }
-
   top[0]->Reshape(top_shape);
   num_ = bottom[0]->count(0, channel_axis_);
   bottom_dim_ = bottom[0]->count(channel_axis_);
@@ -135,11 +132,9 @@ void Im2colLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   const Dtype* bottom_data = bottom[0]->cpu_data();
   Dtype* top_data = top[0]->mutable_cpu_data();
-
   for (int n = 0; n < num_; ++n) {
     DCHECK_EQ(bottom[0]->shape().size() - channel_axis_, num_spatial_axes_ + 1);
     DCHECK_EQ(top[0]->shape().size() - channel_axis_, num_spatial_axes_ + 1);
-
     DCHECK_EQ(kernel_shape_.count(), num_spatial_axes_);
     DCHECK_EQ(pad_.count(), num_spatial_axes_);
     DCHECK_EQ(stride_.count(), num_spatial_axes_);

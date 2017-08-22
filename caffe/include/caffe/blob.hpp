@@ -51,6 +51,11 @@ class Blob {
   void Reshape(const vector<int>& shape);
   void Reshape(const BlobShape& shape);
   void ReshapeLike(const Blob& other);
+
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
+  void RemoveBoth();
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
+  
   inline string shape_string() const {
     ostringstream stream;
     for (int i = 0; i < shape_.size(); ++i) {
@@ -226,10 +231,29 @@ class Blob {
   Dtype* mutable_gpu_data();
   Dtype* mutable_cpu_diff();
   Dtype* mutable_gpu_diff();
+
+  // jay add
+  const Dtype* cpu_data_at(const int n = 0, const int c = 0,
+			   const int h = 0, const int w = 0) const;
+  const Dtype* gpu_data_at(const int n = 0, const int c = 0,
+			   const int h = 0, const int w = 0) const;
+  const Dtype* cpu_diff_at(const int n = 0, const int c = 0,
+			   const int h = 0, const int w = 0) const;
+  const Dtype* gpu_diff_at(const int n = 0, const int c = 0,
+			   const int h = 0, const int w = 0) const;
+  Dtype* mutable_cpu_data_at(const int n = 0, const int c = 0,
+			     const int h = 0, const int w = 0);
+  Dtype* mutable_gpu_data_at(const int n = 0, const int c = 0,
+			     const int h = 0, const int w = 0);
+  Dtype* mutable_cpu_diff_at(const int n = 0, const int c = 0,
+			     const int h = 0, const int w = 0);
+  Dtype* mutable_gpu_diff_at(const int n = 0, const int c = 0,
+			     const int h = 0, const int w = 0);
+  // end jay add
+
   void Update();
   void FromProto(const BlobProto& proto, bool reshape = true);
   void ToProto(BlobProto* proto, bool write_diff = false) const;
-  void ToMat(const char *fname, bool write_diff = false);
 
   /// @brief Compute the sum of absolute values (L1 norm) of the data.
   Dtype asum_data() const;
@@ -265,6 +289,14 @@ class Blob {
   void ShareDiff(const Blob& other);
 
   bool ShapeEquals(const BlobProto& other);
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
+  inline bool is_data_initialized(){
+    return _is_data_initialized; 
+  }
+  inline bool is_diff_initialized(){
+    return _is_diff_initialized; 
+  }
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
 
  protected:
   shared_ptr<SyncedMemory> data_;
@@ -273,7 +305,9 @@ class Blob {
   vector<int> shape_;
   int count_;
   int capacity_;
-
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
+  bool _is_data_initialized,_is_diff_initialized;
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
   DISABLE_COPY_AND_ASSIGN(Blob);
 };  // class Blob
 

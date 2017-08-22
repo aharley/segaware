@@ -73,6 +73,20 @@ class Layer {
     SetLossWeights(top);
   }
 
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
+  void FreeUpMemory(const vector<Blob<Dtype>*>& bottom,
+          const vector<Blob<Dtype>*>& top) {
+      for (int top_id = 0; top_id < top.size(); ++top_id)      
+          top[top_id]->RemoveBoth();
+  }
+
+  void FreeBottomMemory(const vector<Blob<Dtype>*>& bottom,
+          const vector<Blob<Dtype>*>& top) {
+      for (int bottom_id = 0; bottom_id < bottom.size(); ++bottom_id)      
+          bottom[bottom_id]->RemoveBoth();
+  }
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
+  
   /**
    * @brief Does layer-specific setup: your layer should implement this function
    *        as well as Reshape.

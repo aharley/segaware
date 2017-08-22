@@ -46,7 +46,7 @@ void BatchNormLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       spatial_dim, 1, -1, num_by_chans_.gpu_data(),
       spatial_sum_multiplier_.gpu_data(), 1., top_data);
 
-  if (!use_global_stats_) {
+  if (use_global_stats_ && this->phase_ == TRAIN && update_global_stats_) {
     // compute variance using var(X) = E((X-EX)^2)
     caffe_gpu_powx(top[0]->count(), top_data, Dtype(2),
         temp_.mutable_gpu_data());  // (X-EX)^2
@@ -85,14 +85,24 @@ void BatchNormLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   caffe_gpu_div(temp_.count(), top_data, temp_.gpu_data(), top_data);
   // TODO(cdoersch): The caching is only needed because later in-place layers
   //                 might clobber the data.  Can we skip this if they won't?
+  // jay comment out
+  /*
   caffe_copy(x_norm_.count(), top_data,
       x_norm_.mutable_gpu_data());
+  */
 }
 
 template <typename Dtype>
 void BatchNormLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down,
     const vector<Blob<Dtype>*>& bottom) {
+
+  // jay modify, assume bottom[0] always = top [0], and no need to learn "mean" and "var".
+  Dtype* bottom_diff = bottom[0]->mutable_gpu_diff();
+  caffe_gpu_div(temp_.count(), top[0]->gpu_diff(), temp_.gpu_data(), bottom_diff);
+  return;
+
+  /* original
   const Dtype* top_diff;
   if (bottom[0] != top[0]) {
     top_diff = top[0]->gpu_diff();
@@ -105,6 +115,11 @@ void BatchNormLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
     caffe_gpu_div(temp_.count(), top_diff, temp_.gpu_data(), bottom_diff);
     return;
   }
+  */
+
+
+  /* jay comment out
+
   const Dtype* top_data = x_norm_.gpu_data();
   int num = bottom[0]->shape()[0];
   int spatial_dim = bottom[0]->count()/(channels_*bottom[0]->shape(0));
@@ -163,6 +178,8 @@ void BatchNormLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   // note: temp_ still contains sqrt(var(X)+eps), computed during the forward
   // pass.
   caffe_gpu_div(temp_.count(), bottom_diff, temp_.gpu_data(), bottom_diff);
+
+  */
 }
 
 INSTANTIATE_LAYER_GPU_FUNCS(BatchNormLayer);

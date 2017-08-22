@@ -49,7 +49,7 @@ void DistLossLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   int height_col = bottom[0]->height();
   int width_col = bottom[0]->width();
   int channels_col = bottom[0]->channels();
-  int count = bottom[0]->count(1);
+  int count = bottom[0]->count();
   // start one kernel per position, then within go through the channels
   int num_kernels = height_col * width_col;
 
@@ -70,17 +70,12 @@ void DistLossLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   caffe_gpu_asum(count,diff_col,&loss);
   const Dtype* dist_cpu = diff_.cpu_data();
   top[0]->mutable_cpu_data()[0] = loss / count;
-
-  // save from exploding loss
-  if (loss/count > 1000000)
-    LOG(ERROR) << "Loss is too high!";
-  CHECK_LT(loss/count, 1000000);
 }
 
 template <typename Dtype>
 void DistLossLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
-  int count = bottom[0]->count(1);
+  int count = bottom[0]->count();
   Dtype* bottom_diff = bottom[0]->mutable_gpu_diff();
   const Dtype* diff_col = diff_.gpu_data();
   caffe_copy(count, diff_col, bottom_diff);

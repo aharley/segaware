@@ -117,10 +117,6 @@ void SoftmaxLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   kernel_channel_div<Dtype><<<CAFFE_GET_BLOCKS(count),
       CAFFE_CUDA_NUM_THREADS>>>(count, outer_num_, channels, inner_num_,
       scale_data, top_data);
-  // const Dtype* embs = top[0]->cpu_data();
-  // for (int i=0; i < 10; i++){
-  //   LOG(ERROR) << "for example, soft[" << i << "] = " << embs[i];
-  // }
 }
 
 template <typename Dtype>

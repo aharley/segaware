@@ -9,7 +9,11 @@ template <typename Dtype>
 void SplitLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   for (int i = 0; i < top.size(); ++i) {
-    top[i]->ShareData(*bottom[0]);
+      top[i]->ShareData(*bottom[0]);
+      // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
+      // initialize backward gradient
+      caffe_gpu_set(top[i]->count(), Dtype(0.), top[i]->mutable_gpu_diff());
+      // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
   }
 }
 

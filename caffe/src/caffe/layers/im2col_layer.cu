@@ -29,10 +29,6 @@ void Im2colLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
           dilation_.gpu_data(), top_data + n * top_dim_);
     }
   }
-  // const Dtype* embs = top[0]->cpu_data();
-  // for (int i=195; i < 205; i++){
-  //   LOG(ERROR) << "for example, i2c[" << i << "] = " << embs[i];
-  // }
 }
 
 template <typename Dtype>

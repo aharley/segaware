@@ -62,13 +62,14 @@ class GradientChecker {
 
  protected:
   Dtype GetObjAndGradient(const Layer<Dtype>& layer,
-      const vector<Blob<Dtype>*>& top, int top_id = -1, int top_data_id= -1);
+      const vector<Blob<Dtype>*>& top, int top_id = -1, int top_data_id = -1);
   Dtype stepsize_;
   Dtype threshold_;
   unsigned int seed_;
   Dtype kink_;
   Dtype kink_range_;
 };
+
 
 template <typename Dtype>
 void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
@@ -127,7 +128,6 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
   // finite differencing.
   // LOG(ERROR) << "Checking " << blobs_to_check.size() << " blobs.";
   for (int blob_id = 0; blob_id < blobs_to_check.size(); ++blob_id) {
-    // LOG(ERROR) << "checking blob " << blob_id;
     Blob<Dtype>* current_blob = blobs_to_check[blob_id];
     const Dtype* computed_gradients =
         computed_gradient_blobs[blob_id]->cpu_data();
@@ -181,16 +181,6 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
       }
       // LOG(ERROR) << "Feature: " << current_blob->cpu_data()[feat_id];
       // LOG(ERROR) << "computed gradient: " << computed_gradient
-      // 		 << " estimated_gradient: " << estimated_gradient;
-
-      // if (round(computed_gradient*1/threshold_) == round(estimated_gradient*1/threshold_))
-      // 	LOG(ERROR) << "c: " << computed_gradient
-      // 		   << " e: " << estimated_gradient;
-      // else
-      // 	LOG(ERROR) << "c: " << computed_gradient
-      // 		   << " e: " << estimated_gradient << " *** " << "(" << computed_gradient-estimated_gradient << ")";
-
-      // LOG(ERROR) << "checking blob " << blob_id << "; computed gradient: " << computed_gradient
       //    << " estimated_gradient: " << estimated_gradient;
     }
   }
@@ -200,25 +190,12 @@ template <typename Dtype>
 void GradientChecker<Dtype>::CheckGradientExhaustive(Layer<Dtype>* layer,
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top,
     int check_bottom) {
-  // LOG(ERROR) << "Ok, checking gradient exhaustive";
   layer->SetUp(bottom, top);
-  // LOG(ERROR) << "got setup";
   CHECK_GT(top.size(), 0) << "Exhaustive mode requires at least one top blob.";
   // LOG(ERROR) << "Exhaustive Mode.";
   for (int i = 0; i < top.size(); ++i) {
-  // for (int i = 65; i < 72; ++i) {
-  // int i=72;
-    // LOG(ERROR) << "checking top blob " << i;
     // LOG(ERROR) << "Exhaustive: blob " << i << " size " << top[i]->count();
     for (int j = 0; j < top[i]->count(); ++j) {
-    // for (int j = 69; j < 72; ++j) {
-    // int j=16;
-    // LOG(ERROR) << "---------------------------------------------------------------";
-    // LOG(ERROR) << "---------------------------------------------------------------";
-    // LOG(ERROR) << "top_data_id = " << j << "!!!!";
-    // LOG(ERROR) << "---------------------------------------------------------------";
-    // LOG(ERROR) << "---------------------------------------------------------------";
-    //   LOG(ERROR) << "checking top output " << j;
       // LOG(ERROR) << "Exhaustive: blob " << i << " data " << j;
       CheckGradientSingle(layer, bottom, top, check_bottom, i, j);
     }

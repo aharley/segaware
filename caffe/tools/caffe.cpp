@@ -201,7 +201,7 @@ int train() {
         GetRequestedAction(FLAGS_sighup_effect));
 
   shared_ptr<caffe::Solver<float> >
-      solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
+      solver(caffe::SolverRegistry<float>::CreateSolver(solver_param)); //solver constructor called.
 
   solver->SetActionFunction(signal_handler.GetActionFunction());
 
@@ -217,7 +217,7 @@ int train() {
     sync.run(gpus);
   } else {
     LOG(INFO) << "Starting Optimization";
-    solver->Solve();
+    solver->Solve(); //this is the only function called from the main tool
   }
   LOG(INFO) << "Optimization Done.";
   return 0;
@@ -247,17 +247,18 @@ int test() {
     Caffe::set_mode(Caffe::CPU);
   }
   // Instantiate the caffe net.
-  Net<float> caffe_net(FLAGS_model, caffe::TEST);
+  Net<float> caffe_net(FLAGS_model, caffe::TEST); //net constructor called.
   caffe_net.CopyTrainedLayersFrom(FLAGS_weights);
   LOG(INFO) << "Running for " << FLAGS_iterations << " iterations.";
 
+  vector<Blob<float>* > bottom_vec;
   vector<int> test_score_output_id;
   vector<float> test_score;
   float loss = 0;
   for (int i = 0; i < FLAGS_iterations; ++i) {
     float iter_loss;
     const vector<Blob<float>*>& result =
-        caffe_net.Forward(&iter_loss);
+        caffe_net.Forward(bottom_vec, &iter_loss); //net.Forward called 
     loss += iter_loss;
     int idx = 0;
     for (int j = 0; j < result.size(); ++j) {
@@ -321,7 +322,7 @@ int time() {
   // Note that for the speed benchmark, we will assume that the network does
   // not take any input blobs.
   float initial_loss;
-  caffe_net.Forward(&initial_loss);
+  caffe_net.Forward(vector<Blob<float>*>(), &initial_loss);
   LOG(INFO) << "Initial loss: " << initial_loss;
   LOG(INFO) << "Performing Backward";
   caffe_net.Backward();

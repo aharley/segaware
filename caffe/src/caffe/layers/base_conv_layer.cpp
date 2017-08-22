@@ -1,44 +1,23 @@
 #include <algorithm>
-#include <cfloat>
 #include <vector>
-
-#include "thrust/device_vector.h"
 
 #include "caffe/filler.hpp"
 #include "caffe/layers/base_conv_layer.hpp"
 #include "caffe/util/im2col.hpp"
-#include "caffe/util/im2dist.hpp"
 #include "caffe/util/math_functions.hpp"
-//#include "caffe/util/normconv_helpers.hpp"
-#include "caffe/layers/softmax_layer.hpp"
-// #include <cmath>  // for std::fabs
 
 namespace caffe {
 
+// SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
 template <typename Dtype>
 Blob<Dtype> BaseConvolutionLayer<Dtype>::col_buffer_;
+// SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
 
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   // Configure the kernel size, padding, stride, and inputs.
   ConvolutionParameter conv_param = this->layer_param_.convolution_param();
-  normalized_convolution_ = conv_param.normalized_convolution();
-  if (normalized_convolution_) {
-    switch (this->layer_param_.norm_conv_param().norm()) {
-    case NormConvParameter_Norm_L1:
-      norm_ = 1;
-      break;
-    case NormConvParameter_Norm_L2:
-      norm_ = 2; // really, 0.5*(l2_norm)^2 is implemented
-      break;
-    default:
-      LOG(FATAL) << "Unknown norm (choose L1 or L2)";
-    }
-  } else { 
-    norm_ = 0; // the norm is never calculated in this case
-  }
-  // Configure the kernel size, padding, stride, and inputs.
   force_nd_im2col_ = conv_param.force_nd_im2col();
   bottom_is_im2col_ = conv_param.bottom_is_im2col();
   channel_axis_ = bottom[0]->CanonicalAxisIndex(conv_param.axis());
@@ -143,8 +122,6 @@ void BaseConvolutionLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   }
   // Configure output channels and groups.
   channels_ = bottom[0]->shape(channel_axis_);
-  if (normalized_convolution_)
-    emb_channels_ = bottom[1]->shape(channel_axis_);
   num_output_ = this->layer_param_.convolution_param().num_output();
   CHECK_GT(num_output_, 0);
   group_ = this->layer_param_.convolution_param().group();
@@ -160,9 +137,7 @@ void BaseConvolutionLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   }
   // Handle the parameters: weights and biases.
   // - blobs_[0] holds the filter weights
-  // if biases are enabled, they go into blobs_[1]
-  // if the scale factor (for normalized convolution) is enabled, it'll either g
-  // into blobs[1] or blobs_[2], depending on whether or not biases are used
+  // - blobs_[1] holds the biases (optional)
   vector<int> weight_shape(2);
   weight_shape[0] = conv_out_channels_;
   weight_shape[1] = conv_in_channels_ / group_;
@@ -176,41 +151,24 @@ void BaseConvolutionLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   }
   bias_term_ = this->layer_param_.convolution_param().bias_term();
   vector<int> bias_shape(bias_term_, num_output_);
-  if (normalized_convolution_) {
-    // LOG(ERROR) << "setting scale_ind_; bias_term_ = " << bias_term_;
-    scale_term_ = this->layer_param_.norm_conv_param().scale_term();
-    scale_ind_ = bias_term_ ? 2 : 1; // if we have a bias, shift scale_ind_ up
-    // LOG(ERROR) << "scale_term_ = " << scale_term_;
-  } else {
-    scale_term_ = false;
-  }
-  vector<int> scale_shape(scale_term_, 1);
   if (this->blobs_.size() > 0) {
-    CHECK_EQ(1 + bias_term_ + scale_term_, this->blobs_.size())
-      << "Incorrect number of weight blobs.";
+    CHECK_EQ(1 + bias_term_, this->blobs_.size())
+        << "Incorrect number of weight blobs.";
     if (weight_shape != this->blobs_[0]->shape()) {
       Blob<Dtype> weight_shaped_blob(weight_shape);
       LOG(FATAL) << "Incorrect weight shape: expected shape "
-		 << weight_shaped_blob.shape_string() << "; instead, shape was "
-		 << this->blobs_[0]->shape_string();
+          << weight_shaped_blob.shape_string() << "; instead, shape was "
+          << this->blobs_[0]->shape_string();
     }
     if (bias_term_ && bias_shape != this->blobs_[1]->shape()) {
       Blob<Dtype> bias_shaped_blob(bias_shape);
       LOG(FATAL) << "Incorrect bias shape: expected shape "
-		 << bias_shaped_blob.shape_string() << "; instead, shape was "
-		 << this->blobs_[1]->shape_string();
-    }
-    if (scale_term_ && scale_shape != this->blobs_[scale_ind_]->shape()) {
-      Blob<Dtype> scale_shaped_blob(scale_shape);
-      LOG(FATAL) << "Incorrect scale shape: expected shape "
-		 << scale_shaped_blob.shape_string() << "; instead, shape was "
-		 << this->blobs_[scale_ind_]->shape_string();
+          << bias_shaped_blob.shape_string() << "; instead, shape was "
+          << this->blobs_[1]->shape_string();
     }
     LOG(INFO) << "Skipping parameter initialization";
   } else {
-    if (bias_term_ && scale_term_) {
-      this->blobs_.resize(3);
-    } else if (bias_term_ || scale_term_) {
+    if (bias_term_) {
       this->blobs_.resize(2);
     } else {
       this->blobs_.resize(1);
@@ -227,13 +185,6 @@ void BaseConvolutionLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       shared_ptr<Filler<Dtype> > bias_filler(GetFiller<Dtype>(
           this->layer_param_.convolution_param().bias_filler()));
       bias_filler->Fill(this->blobs_[1].get());
-    }
-    // If necessary, initialize and fill the scale.
-    if (scale_term_) {
-      this->blobs_[scale_ind_].reset(new Blob<Dtype>(scale_shape));
-      shared_ptr<Filler<Dtype> > scale_filler(GetFiller<Dtype>(
-          this->layer_param_.norm_conv_param().scale_filler()));
-      scale_filler->Fill(this->blobs_[scale_ind_].get());
     }
   }
   kernel_dim_ = this->blobs_[0]->count(1);
@@ -252,16 +203,9 @@ void BaseConvolutionLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   CHECK_EQ(bottom[0]->shape(channel_axis_), channels_)
       << "Input size incompatible with convolution kernel.";
   // TODO: generalize to handle inputs of different shapes.
-  if (!normalized_convolution_) {
-    for (int bottom_id = 1; bottom_id < bottom.size(); ++bottom_id) {
-      CHECK(bottom[0]->shape() == bottom[bottom_id]->shape())
-	<< "All inputs must have the same shape.";
-    }
-  } else {
-    CHECK(bottom[0]->shape(first_spatial_axis) == bottom[1]->shape(first_spatial_axis))
-      << "The img and emb must have the same spatial dimensions.";
-    CHECK(bottom[0]->shape(first_spatial_axis+1) == bottom[1]->shape(first_spatial_axis+1))
-      << "The img and emb must have the same spatial dimensions.";
+  for (int bottom_id = 1; bottom_id < bottom.size(); ++bottom_id) {
+    CHECK(bottom[0]->shape() == bottom[bottom_id]->shape())
+        << "All inputs must have the same shape.";
   }
   // Shape the tops.
   bottom_shape_ = &bottom[0]->shape();
@@ -293,17 +237,6 @@ void BaseConvolutionLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
       conv_input_shape_data[i] = bottom[0]->shape(channel_axis_ + i);
     }
   }
-  if (normalized_convolution_) {
-    emb_input_shape_.Reshape(bottom_dim_blob_shape);
-    int* emb_input_shape_data = emb_input_shape_.mutable_cpu_data();
-    for (int i = 0; i < num_spatial_axes_ + 1; ++i) {
-      if (reverse_dimensions()) {
-	emb_input_shape_data[i] = top[1]->shape(channel_axis_ + i);
-      } else {
-	emb_input_shape_data[i] = bottom[1]->shape(channel_axis_ + i);
-      }
-    }
-  }
   // The im2col result buffer will only hold one image at a time to avoid
   // overly large memory usage. In the special case of 1x1 convolution
   // it goes lazily unused to save memory.
@@ -317,75 +250,23 @@ void BaseConvolutionLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
     }
   }
   col_buffer_.Reshape(col_buffer_shape_);
-  if (normalized_convolution_) {
-
-    emb_col_buffer_shape_.clear();
-    diff_col_buffer_shape_.clear();
-    sum_buffer_shape_.clear();
-    // LOG(ERROR) << "ok; kernel_dim_ = " << kernel_dim_ << ", conv_in_channels_ = " << conv_in_channels_;
-    // emb_col_buffer_shape_.push_back(kernel_dim_ / conv_in_channels_);
-    int* kernel_shape_data = kernel_shape_.mutable_cpu_data();
-    emb_col_buffer_shape_.push_back(kernel_shape_data[0]*kernel_shape_data[1]);
-    // LOG(ERROR) << "so this first shape = " << kernel_dim_ / conv_in_channels_;
-    // LOG(ERROR) << "so this first shape = " << kernel_shape_data[0]*kernel_shape_data[1];
-    diff_col_buffer_shape_.push_back(kernel_shape_data[0]*kernel_shape_data[1]*emb_channels_);
-    sum_buffer_shape_.push_back(1);
-    for (int i = 0; i < num_spatial_axes_; ++i) {
-      emb_col_buffer_shape_.push_back(output_shape_[i]);
-      diff_col_buffer_shape_.push_back(output_shape_[i]);
-      sum_buffer_shape_.push_back(output_shape_[i]);
-    }
-    // softmax_input_.Reshape(emb_col_buffer_shape_);
-    // softmax_output_.Reshape(emb_col_buffer_shape_);
-    soft_col_buffer_.Reshape(emb_col_buffer_shape_);
-    emb_col_buffer_.Reshape(emb_col_buffer_shape_);
-    diff_col_buffer_.Reshape(diff_col_buffer_shape_);
-    res_col_buffer_.Reshape(col_buffer_shape_);
-    // LOG(ERROR) << "col buffer is shaped " << col_buffer_.shape_string();
-    // LOG(ERROR) << "emb_col_buffer is shaped " << emb_col_buffer_.shape_string();
-    // LOG(ERROR) << "diff_col_buffer is shaped " << diff_col_buffer_.shape_string();
-    // LOG(ERROR) << "res_col_buffer is shaped " << res_col_buffer_.shape_string();
-    // LOG(ERROR) << "sum_buffer_ is shaped " << sum_buffer_.shape_string();
-    emb_bottom_dim_ = bottom[1]->count(channel_axis_);
-    sum_buffer_.Reshape(sum_buffer_shape_);
-
-    // softmax_bottom_vec_.clear();
-    // softmax_bottom_vec_.push_back(&emb_col_buffer_);
-    // softmax_top_vec_.clear();
-    // softmax_top_vec_.push_back(&soft_col_buffer_);
-    // LayerParameter softmax_param;
-    // softmax_param.mutable_softmax_param()->set_axis(0);
-    // softmax_layer_.reset(new SoftmaxLayer<Dtype>(softmax_param));
-    // softmax_layer_->SetUp(softmax_bottom_vec_, softmax_top_vec_);
-  }
   bottom_dim_ = bottom[0]->count(channel_axis_);
   top_dim_ = top[0]->count(channel_axis_);
   num_kernels_im2col_ = conv_in_channels_ * conv_out_spatial_dim_;
   num_kernels_col2im_ = reverse_dimensions() ? top_dim_ : bottom_dim_;
   // Set up the all ones "bias multiplier" for adding biases by BLAS
-  in_spatial_dim_ = bottom[0]->count(first_spatial_axis);
   out_spatial_dim_ = top[0]->count(first_spatial_axis);
-  if (bias_term_ || scale_term_) {
-    // bias and scale share this buffer. it's just a vector of ones.
-    int sum_mult_size = out_spatial_dim_;
-    if (scale_term_)
-      sum_mult_size = res_col_buffer_.count();
-    vector<int> sum_multiplier_shape(1, sum_mult_size);
-    sum_multiplier_.Reshape(sum_multiplier_shape);
-    caffe_set(sum_multiplier_.count(), Dtype(1),
-	      sum_multiplier_.mutable_cpu_data());
+  if (bias_term_) {
+    vector<int> bias_multiplier_shape(1, out_spatial_dim_);
+    bias_multiplier_.Reshape(bias_multiplier_shape);
+    caffe_set(bias_multiplier_.count(), Dtype(1),
+        bias_multiplier_.mutable_cpu_data());
   }
-  // LOG(ERROR) << "bias shape = " << this->blobs_[1]->shape_string();
-  // if (normalized_convolution_) {
-  //   LOG(ERROR) << "scale_ind_ = " << scale_ind_;
-  //   LOG(ERROR) << "scale shape = " << this->blobs_[scale_ind_]->shape_string();
-  // }
-  // LOG(ERROR) << "group_ = " << group_;
 }
-  
+
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::forward_cpu_gemm(const Dtype* input,
-						   const Dtype* weights, Dtype* output, bool skip_im2col) {
+    const Dtype* weights, Dtype* output, bool skip_im2col) {
   const Dtype* col_buff = input;
   if (!is_1x1_ && !bottom_is_im2col_) {
     if (!skip_im2col) {
@@ -395,43 +276,41 @@ void BaseConvolutionLayer<Dtype>::forward_cpu_gemm(const Dtype* input,
   }
   for (int g = 0; g < group_; ++g) {
     caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, conv_out_channels_ /
-			  group_, conv_out_spatial_dim_, kernel_dim_,
-			  (Dtype)1., weights + weight_offset_ * g, col_buff + col_offset_ * g,
-			  (Dtype)0., output + output_offset_ * g);
+        group_, conv_out_spatial_dim_, kernel_dim_,
+        (Dtype)1., weights + weight_offset_ * g, col_buff + col_offset_ * g,
+        (Dtype)0., output + output_offset_ * g);
   }
 }
 
-
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::forward_cpu_bias(Dtype* output,
-						   const Dtype* bias) {
+    const Dtype* bias) {
   caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, num_output_,
-			out_spatial_dim_, 1, (Dtype)1., bias, sum_multiplier_.cpu_data(),
-			(Dtype)1., output);
+      out_spatial_dim_, 1, (Dtype)1., bias, bias_multiplier_.cpu_data(),
+      (Dtype)1., output);
 }
 
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::backward_cpu_gemm(const Dtype* output,
-						    const Dtype* weights, Dtype* input) {
+    const Dtype* weights, Dtype* input) {
   Dtype* col_buff = col_buffer_.mutable_cpu_data();
   if (is_1x1_ || bottom_is_im2col_) {
     col_buff = input;
   }
   for (int g = 0; g < group_; ++g) {
     caffe_cpu_gemm<Dtype>(CblasTrans, CblasNoTrans, kernel_dim_,
-			  conv_out_spatial_dim_, conv_out_channels_ / group_,
-			  (Dtype)1., weights + weight_offset_ * g, output + output_offset_ * g,
-			  (Dtype)0., col_buff + col_offset_ * g);
+        conv_out_spatial_dim_, conv_out_channels_ / group_,
+        (Dtype)1., weights + weight_offset_ * g, output + output_offset_ * g,
+        (Dtype)0., col_buff + col_offset_ * g);
   }
   if (!is_1x1_ && !bottom_is_im2col_) {
     conv_col2im_cpu(col_buff, input);
   }
 }
 
-
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::weight_cpu_gemm(const Dtype* input,
-						  const Dtype* output, Dtype* weights) {
+    const Dtype* output, Dtype* weights) {
   const Dtype* col_buff = input;
   if (!is_1x1_ && !bottom_is_im2col_) {
     conv_im2col_cpu(input, col_buffer_.mutable_cpu_data());
@@ -439,25 +318,24 @@ void BaseConvolutionLayer<Dtype>::weight_cpu_gemm(const Dtype* input,
   }
   for (int g = 0; g < group_; ++g) {
     caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasTrans, conv_out_channels_ / group_,
-			  kernel_dim_, conv_out_spatial_dim_,
-			  (Dtype)1., output + output_offset_ * g, col_buff + col_offset_ * g,
-			  (Dtype)1., weights + weight_offset_ * g);
+        kernel_dim_, conv_out_spatial_dim_,
+        (Dtype)1., output + output_offset_ * g, col_buff + col_offset_ * g,
+        (Dtype)1., weights + weight_offset_ * g);
   }
 }
 
-
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::backward_cpu_bias(Dtype* bias,
-						    const Dtype* input) {
+    const Dtype* input) {
   caffe_cpu_gemv<Dtype>(CblasNoTrans, num_output_, out_spatial_dim_, 1.,
-			input, sum_multiplier_.cpu_data(), 1., bias);
+      input, bias_multiplier_.cpu_data(), 1., bias);
 }
 
 #ifndef CPU_ONLY
 
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::forward_gpu_gemm(const Dtype* input,
-						   const Dtype* weights, Dtype* output, bool skip_im2col) {
+    const Dtype* weights, Dtype* output, bool skip_im2col) {
   const Dtype* col_buff = input;
   if (!is_1x1_ && !bottom_is_im2col_) {
     if (!skip_im2col) {
@@ -467,32 +345,32 @@ void BaseConvolutionLayer<Dtype>::forward_gpu_gemm(const Dtype* input,
   }
   for (int g = 0; g < group_; ++g) {
     caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, conv_out_channels_ /
-			  group_, conv_out_spatial_dim_, kernel_dim_,
-			  (Dtype)1., weights + weight_offset_ * g, col_buff + col_offset_ * g,
-			  (Dtype)0., output + output_offset_ * g);
+        group_, conv_out_spatial_dim_, kernel_dim_,
+        (Dtype)1., weights + weight_offset_ * g, col_buff + col_offset_ * g,
+        (Dtype)0., output + output_offset_ * g);
   }
 }
 
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::forward_gpu_bias(Dtype* output,
-						   const Dtype* bias) {
+    const Dtype* bias) {
   caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, num_output_,
-			out_spatial_dim_, 1, (Dtype)1., bias, sum_multiplier_.gpu_data(),
-			(Dtype)1., output);
+      out_spatial_dim_, 1, (Dtype)1., bias, bias_multiplier_.gpu_data(),
+      (Dtype)1., output);
 }
 
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::backward_gpu_gemm(const Dtype* output,
-						    const Dtype* weights, Dtype* input) {
+    const Dtype* weights, Dtype* input) {
   Dtype* col_buff = col_buffer_.mutable_gpu_data();
   if (is_1x1_ || bottom_is_im2col_) {
     col_buff = input;
   }
   for (int g = 0; g < group_; ++g) {
     caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans, kernel_dim_,
-			  conv_out_spatial_dim_, conv_out_channels_ / group_,
-			  (Dtype)1., weights + weight_offset_ * g, output + output_offset_ * g,
-			  (Dtype)0., col_buff + col_offset_ * g);
+        conv_out_spatial_dim_, conv_out_channels_ / group_,
+        (Dtype)1., weights + weight_offset_ * g, output + output_offset_ * g,
+        (Dtype)0., col_buff + col_offset_ * g);
   }
   if (!is_1x1_ && !bottom_is_im2col_) {
     conv_col2im_gpu(col_buff, input);
@@ -501,7 +379,7 @@ void BaseConvolutionLayer<Dtype>::backward_gpu_gemm(const Dtype* output,
 
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::weight_gpu_gemm(const Dtype* input,
-				  const Dtype* output, Dtype* weights) {
+    const Dtype* output, Dtype* weights) {
   const Dtype* col_buff = input;
   if (!is_1x1_ && !bottom_is_im2col_) {
     conv_im2col_gpu(input, col_buffer_.mutable_gpu_data());
@@ -509,480 +387,20 @@ void BaseConvolutionLayer<Dtype>::weight_gpu_gemm(const Dtype* input,
   }
   for (int g = 0; g < group_; ++g) {
     caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans, conv_out_channels_ / group_,
-			  kernel_dim_, conv_out_spatial_dim_,
-			  (Dtype)1., output + output_offset_ * g, col_buff + col_offset_ * g,
-			  (Dtype)1., weights + weight_offset_ * g);
+        kernel_dim_, conv_out_spatial_dim_,
+        (Dtype)1., output + output_offset_ * g, col_buff + col_offset_ * g,
+        (Dtype)1., weights + weight_offset_ * g);
   }
 }
 
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::backward_gpu_bias(Dtype* bias,
-						    const Dtype* input) {
+    const Dtype* input) {
   caffe_gpu_gemv<Dtype>(CblasNoTrans, num_output_, out_spatial_dim_, 1.,
-			input, sum_multiplier_.gpu_data(), 1., bias);
-}
-
-template <typename Dtype>
-void BaseConvolutionLayer<Dtype>::normalized_weight_gpu_gemm(const Dtype* output, Dtype* weights) {
-  // // prep col_buffer_ and emb_col_buffer_
-  // const int emb_count = emb_col_buffer_.count();
-  // // multiply the two
-  // for (int c=0; c < conv_in_channels_; ++c) {
-  //   caffe_gpu_mul(emb_count,
-  // 	      soft_col_buffer_.gpu_data(),
-  // 	      col_buffer_.gpu_data() + c * emb_count,
-  // 	      res_col_buffer_.mutable_gpu_data() + c * emb_count);
-  // }
-  // // gemm into weights
-  // for (int g = 0; g < group_; ++g) {
-  //   caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans, conv_out_channels_ / group_,
-  // 			  kernel_dim_, conv_out_spatial_dim_,
-  // 			  (Dtype)1., output + output_offset_ * g,  
-  // 			  res_col_buffer_.gpu_data() + col_offset_ * g,
-  // 			  (Dtype)1., weights + weight_offset_ * g);
-  // }
-}
-
-template <typename Dtype>
-void BaseConvolutionLayer<Dtype>::normalized_forward_gpu_gemm(const Dtype* weights, 
-					      Dtype* output, bool skip_im2col) {
-  // // prep col_buffer_ and emb_col_buffer_
-  // const int emb_count = soft_col_buffer_.count();
-  // // multiply the two
-  // for (int c=0; c < conv_in_channels_; ++c) {
-  //   caffe_gpu_mul(emb_count,
-  // 	      soft_col_buffer_.gpu_data(),
-  // 	      col_buffer_.gpu_data() + c * emb_count,
-  // 	      res_col_buffer_.mutable_gpu_data() + c * emb_count);
-  // }
-  // // gemm into output
-  // for (int g = 0; g < group_; ++g) {
-  //   caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, conv_out_channels_ /
-  // 			  group_, conv_out_spatial_dim_, kernel_dim_,
-  // 			  (Dtype)1., weights + weight_offset_ * g, 
-  // 			  res_col_buffer_.mutable_gpu_data() + col_offset_ * g,
-  // 			  (Dtype)0., output + output_offset_ * g);
-  // }
-}
-
-template <typename Dtype>
-void BaseConvolutionLayer<Dtype>::normalized_backward_gpu_img_gemm(const Dtype* top_diff,
-						   const Dtype* weights, Dtype* input_img) {
-  // // prep col_buffer_ and emb_col_buffer_
-  // const int emb_count = emb_col_buffer_.count();
-  // // gemm into res_col_buffer_
-  // for (int g = 0; g < group_; ++g) {
-  //   caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans, kernel_dim_,
-  // 			  conv_out_spatial_dim_, conv_out_channels_ / group_,
-  // 			  (Dtype)1., weights + weight_offset_ * g, top_diff + output_offset_ * g,
-  // 			  (Dtype)0., res_col_buffer_.mutable_gpu_data() + col_offset_ * g);
-  // }
-  // // multiply by exp(scale(emb))
-  // for (int c=0; c < conv_in_channels_; ++c) {
-  //   caffe_gpu_mul(emb_count,
-  // 	      emb_col_buffer_.gpu_data(),
-  // 	      res_col_buffer_.gpu_data() + c * emb_count,
-  // 	      res_col_buffer_.mutable_gpu_data() + c * emb_count);
-  // }
-  // // col2im
-  // if (!is_1x1_ && !bottom_is_im2col_) {
-  //   conv_col2im_gpu(res_col_buffer_.gpu_data(), input_img);
-  // }
-}
-
-template <typename Dtype>
-void BaseConvolutionLayer<Dtype>::normalized_backward_gpu_emb_gemm(const Dtype* top_diff,
-						   const Dtype* weights, Dtype* emb_diff) {
-  // // prep col_buffer_ and emb_col_buffer_
-  // const int img_count = res_col_buffer_.count();
-  // const int emb_count = emb_col_buffer_.count();
-  // // gemm into res_col_buffer_
-  // for (int g = 0; g < group_; ++g) {
-  //   caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans, kernel_dim_,
-  // 			  conv_out_spatial_dim_, conv_out_channels_ / group_,
-  // 			  (Dtype)1., weights + weight_offset_ * g, top_diff + output_offset_ * g,
-  // 			  (Dtype)0., res_col_buffer_.mutable_gpu_data() + col_offset_ * g);
-  // }
-  // // mult by img
-  // caffe_gpu_mul(img_count, 
-  // 	    col_buffer_.gpu_data(),
-  // 	    res_col_buffer_.gpu_data(),
-  // 	    res_col_buffer_.mutable_gpu_data());
-  // // sum down to one channel
-  // for (int c=1; c < conv_in_channels_; ++c) {
-  //   caffe_gpu_axpy(emb_count,
-  // 	       Dtype(1),
-  // 	       res_col_buffer_.gpu_data() + c * emb_count,
-  // 	       res_col_buffer_.mutable_gpu_data());
-  // }
-  // Dtype* sum_data = sum_buffer_.mutable_gpu_data();
-  // int mask_size = emb_col_buffer_.count(0,channel_axis_);
-  // // compute dot(top_diff, top_data) and subtract them from the bottom diff
-  // for (int k = 0; k < conv_out_spatial_dim_; ++k) {
-  //   sum_data[k] = caffe_cpu_strided_dot<Dtype>(mask_size,
-  // 	 res_col_buffer_.cpu_data() + k, conv_out_spatial_dim_,
-  // 	 soft_col_buffer_.cpu_data() + k, conv_out_spatial_dim_);
-  // }
-  // // subtraction
-  // caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, mask_size, conv_out_spatial_dim_, 1,
-  // 		-1., sum_multiplier_.gpu_data(), sum_data, 1., res_col_buffer_.mutable_gpu_data());
-  // // elementwise multiplication
-  // caffe_gpu_mul(emb_count, res_col_buffer_.gpu_data(), soft_col_buffer_.gpu_data(), res_col_buffer_.mutable_gpu_data());
-  // if (scale_term_) {
-  //   // scale the res
-  //   Dtype* scale_factor = this->blobs_[scale_ind_].get()->mutable_cpu_data();
-  //   caffe_gpu_scale(emb_count, 
-  // 		    -scale_factor[0], 
-  // 		    res_col_buffer_.gpu_data(), 
-  // 		    res_col_buffer_.mutable_gpu_data());
-  // }
-  // // dist2im
-  // if (!is_1x1_ && !bottom_is_im2col_) {
-  //   conv_dist2im_gpu(res_col_buffer_.gpu_data(), 
-  // 		     diff_col_buffer_.gpu_data(), 
-  // 		     emb_diff);
-  // }
-}
-
-template <typename Dtype>
-void BaseConvolutionLayer<Dtype>::backward_gpu_scale(Dtype* scale_diff,
-     const Dtype* weights, const Dtype* input_emb, const Dtype* top_diff) {
-  // // prep col_buffer_ and emb_col_buffer_
-  // const int img_count = res_col_buffer_.count();
-  // const int emb_count = emb_col_buffer_.count();
-  // // gemm into res_col_buffer_
-  // for (int g = 0; g < group_; ++g) {
-  //   caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans, kernel_dim_,
-  // 			  conv_out_spatial_dim_, conv_out_channels_ / group_,
-  // 			  (Dtype)1., weights + weight_offset_ * g, top_diff + output_offset_ * g,
-  // 			  (Dtype)0., res_col_buffer_.mutable_gpu_data() + col_offset_ * g);
-  // }
-  // // mult by img
-  // caffe_gpu_mul(img_count, 
-  // 	    col_buffer_.gpu_data(),
-  // 	    res_col_buffer_.gpu_data(),
-  // 	    res_col_buffer_.mutable_gpu_data());
-  // // sum down to one channel
-  // for (int c=1; c < conv_in_channels_; ++c) {
-  //   caffe_gpu_axpy(emb_count,
-  // 	       Dtype(1),
-  // 	       res_col_buffer_.gpu_data() + c * emb_count,
-  // 	       res_col_buffer_.mutable_gpu_data());
-  // }
-  // Dtype* sum_data = sum_buffer_.mutable_gpu_data();
-  // int mask_size = emb_col_buffer_.count(0,channel_axis_);
-  // // compute dot(top_diff, top_data) and subtract them from the bottom diff
-  // for (int k = 0; k < conv_out_spatial_dim_; ++k) {
-  //   sum_data[k] = caffe_cpu_strided_dot<Dtype>(mask_size,
-  // 	 res_col_buffer_.cpu_data() + k, conv_out_spatial_dim_,
-  // 	 soft_col_buffer_.cpu_data() + k, conv_out_spatial_dim_);
-  // }
-  // // subtraction
-  // caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, mask_size, conv_out_spatial_dim_, 1,
-  // 		-1., sum_multiplier_.gpu_data(), sum_data, 1., res_col_buffer_.mutable_gpu_data());
-  // // elementwise multiplication
-  // caffe_gpu_mul(emb_count, res_col_buffer_.gpu_data(), soft_col_buffer_.gpu_data(), res_col_buffer_.mutable_gpu_data());
-  // // get a fresh embdist
-  // conv_im2dist_gpu(input_emb, emb_col_buffer_.mutable_gpu_data(), 
-  // 		   diff_col_buffer_.mutable_gpu_data());
-  // // mult by embdist
-  // caffe_gpu_mul(emb_count,
-  // 	    emb_col_buffer_.gpu_data(),
-  // 	    res_col_buffer_.gpu_data(),
-  // 	    res_col_buffer_.mutable_gpu_data());
-  // // mult by scale sign
-  // caffe_gpu_scale(emb_count, Dtype(-1), res_col_buffer_.gpu_data(), res_col_buffer_.mutable_gpu_data());
-  // // add it up
-  // caffe_gpu_gemv<Dtype>(CblasNoTrans, 1, emb_count, 1.,
-  // 			res_col_buffer_.gpu_data(), sum_multiplier_.gpu_data(), 1., scale_diff);
-}
-
-template <typename Dtype>
-void BaseConvolutionLayer<Dtype>::normalized_gpu_prep_buffers(const Dtype* weights, 
-	const Dtype* input_img, const Dtype* input_emb) {
-  // const int emb_count = emb_col_buffer_.count();
-  // // get fresh copies of these
-  // conv_im2col_gpu(input_img, col_buffer_.mutable_gpu_data());
-  // conv_im2dist_gpu(input_emb, emb_col_buffer_.mutable_gpu_data(), 
-  // 		   diff_col_buffer_.mutable_gpu_data());
-
-  // LOG(ERROR) << "did im2dist";
-  // // scale the embs
-  // Dtype* scale_factor = this->blobs_[scale_ind_].get()->mutable_cpu_data();
-  // LOG(ERROR) << "got scale factor";
-  // caffe_gpu_scale(emb_count, -scale_factor[0], 
-  // 		  emb_col_buffer_.gpu_data(), 
-  // 		  emb_col_buffer_.mutable_gpu_data());
-  // LOG(ERROR) << "did scale";
-  // // softmax...
-  // Dtype* sum_data = sum_buffer_.mutable_gpu_data();
-  // int mask_size = emb_col_buffer_.count(0,channel_axis_);
-  // caffe_copy(emb_count, emb_col_buffer_.gpu_data(), soft_col_buffer_.mutable_gpu_data());
-  // LOG(ERROR) << "did copy";
-  // // We need to subtract the max to avoid numerical issues, compute the exp,
-  // // and then normalize.
-  // // compute max
-  // // NOLINT_NEXT_LINE(whitespace/operators)
-  // kernel_channel_max<Dtype><<<CAFFE_GET_BLOCKS(1 * conv_out_spatial_dim_),
-  //     CAFFE_CUDA_NUM_THREADS>>>(1, mask_size, conv_out_spatial_dim_, soft_col_buffer_.mutable_gpu_data(),
-  //     sum_data);
-  // // subtract
-  // // NOLINT_NEXT_LINE(whitespace/operators)
-  // kernel_channel_subtract<Dtype><<<CAFFE_GET_BLOCKS(emb_count),
-  //     CAFFE_CUDA_NUM_THREADS>>>(emb_count, 1, mask_size, conv_out_spatial_dim_,
-  //     sum_data, soft_col_buffer_.mutable_gpu_data());
-  // // exponentiate
-  // // NOLINT_NEXT_LINE(whitespace/operators)
-  // kernel_exp<Dtype><<<CAFFE_GET_BLOCKS(emb_count), CAFFE_CUDA_NUM_THREADS>>>(
-  //     emb_count, soft_col_buffer_.mutable_gpu_data(), soft_col_buffer_.mutable_gpu_data());
-  // // sum after exp
-  // // NOLINT_NEXT_LINE(whitespace/operators)
-  // kernel_channel_sum<Dtype><<<CAFFE_GET_BLOCKS(1 * conv_out_spatial_dim_),
-  //     CAFFE_CUDA_NUM_THREADS>>>(1, mask_size, conv_out_spatial_dim_, soft_col_buffer_.mutable_gpu_data(),
-  //     sum_data);
-  // // divide
-  // // NOLINT_NEXT_LINE(whitespace/operators)
-  // kernel_channel_div<Dtype><<<CAFFE_GET_BLOCKS(emb_count),
-  //     CAFFE_CUDA_NUM_THREADS>>>(emb_count, 1, mask_size, conv_out_spatial_dim_,
-  //     sum_data, soft_col_buffer_.mutable_gpu_data());
-}
-
-
-template <typename Dtype>
-void BaseConvolutionLayer<Dtype>::normalized_backward_gpu_all(const Dtype* top_diff,
-  const Dtype* weights, const Dtype* input_img, const Dtype* input_emb, 
-  Dtype* weight_diff, Dtype* img_diff, Dtype* emb_diff, Dtype* scale_diff) {
-  // doesn't work yet
+      input, bias_multiplier_.gpu_data(), 1., bias);
 }
 
 #endif  // !CPU_ONLY
-
-template <typename Dtype>
-void BaseConvolutionLayer<Dtype>::normalized_weight_cpu_gemm(const Dtype* output, Dtype* weights) {
-  // // prep col_buffer_ and emb_col_buffer_
-  // const int emb_count = emb_col_buffer_.count();
-  // // multiply the two
-  // for (int c=0; c < conv_in_channels_; ++c) {
-  //   caffe_mul(emb_count,
-  // 	      soft_col_buffer_.cpu_data(),
-  // 	      col_buffer_.cpu_data() + c * emb_count,
-  // 	      res_col_buffer_.mutable_cpu_data() + c * emb_count);
-  // }
-  // // gemm into weights
-  // for (int g = 0; g < group_; ++g) {
-  //   caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasTrans, conv_out_channels_ / group_,
-  // 			  kernel_dim_, conv_out_spatial_dim_,
-  // 			  (Dtype)1., output + output_offset_ * g,  
-  // 			  res_col_buffer_.cpu_data() + col_offset_ * g,
-  // 			  (Dtype)1., weights + weight_offset_ * g);
-  // }
-}
-
-template <typename Dtype>
-void BaseConvolutionLayer<Dtype>::normalized_forward_cpu_gemm(const Dtype* weights, 
-					      Dtype* output, bool skip_im2col) {
-  // // prep col_buffer_ and emb_col_buffer_
-  // const int emb_count = soft_col_buffer_.count();
-  // // multiply the two
-  // for (int c=0; c < conv_in_channels_; ++c) {
-  //   caffe_mul(emb_count,
-  // 	      soft_col_buffer_.cpu_data(),
-  // 	      col_buffer_.cpu_data() + c * emb_count,
-  // 	      res_col_buffer_.mutable_cpu_data() + c * emb_count);
-  // }
-  // // gemm into output
-  // for (int g = 0; g < group_; ++g) {
-  //   caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, conv_out_channels_ /
-  // 			  group_, conv_out_spatial_dim_, kernel_dim_,
-  // 			  (Dtype)1., weights + weight_offset_ * g, 
-  // 			  res_col_buffer_.mutable_cpu_data() + col_offset_ * g,
-  // 			  (Dtype)0., output + output_offset_ * g);
-  // }
-}
-
-template <typename Dtype>
-void BaseConvolutionLayer<Dtype>::normalized_backward_cpu_img_gemm(const Dtype* top_diff,
-						   const Dtype* weights, Dtype* input_img) {
-  // // prep col_buffer_ and emb_col_buffer_
-  // const int emb_count = emb_col_buffer_.count();
-  // // gemm into res_col_buffer_
-  // for (int g = 0; g < group_; ++g) {
-  //   caffe_cpu_gemm<Dtype>(CblasTrans, CblasNoTrans, kernel_dim_,
-  // 			  conv_out_spatial_dim_, conv_out_channels_ / group_,
-  // 			  (Dtype)1., weights + weight_offset_ * g, top_diff + output_offset_ * g,
-  // 			  (Dtype)0., res_col_buffer_.mutable_cpu_data() + col_offset_ * g);
-  // }
-  // // multiply by exp(scale(emb))
-  // for (int c=0; c < conv_in_channels_; ++c) {
-  //   caffe_mul(emb_count,
-  // 	      soft_col_buffer_.cpu_data(),
-  // 	      res_col_buffer_.cpu_data() + c * emb_count,
-  // 	      res_col_buffer_.mutable_cpu_data() + c * emb_count);
-  // }
-  // // col2im
-  // if (!is_1x1_ && !bottom_is_im2col_) {
-  //   conv_col2im_cpu(res_col_buffer_.cpu_data(), input_img);
-  // }
-}
-
-template <typename Dtype>
-void BaseConvolutionLayer<Dtype>::normalized_backward_cpu_emb_gemm(const Dtype* top_diff,
-						   const Dtype* weights, Dtype* emb_diff) {
-  // // prep col_buffer_ and emb_col_buffer_
-  // const int img_count = res_col_buffer_.count();
-  // const int emb_count = emb_col_buffer_.count();
-  // // gemm into res_col_buffer_
-  // for (int g = 0; g < group_; ++g) {
-  //   caffe_cpu_gemm<Dtype>(CblasTrans, CblasNoTrans, kernel_dim_,
-  // 			  conv_out_spatial_dim_, conv_out_channels_ / group_,
-  // 			  (Dtype)1., weights + weight_offset_ * g, top_diff + output_offset_ * g,
-  // 			  (Dtype)0., res_col_buffer_.mutable_cpu_data() + col_offset_ * g);
-  // }
-  // // mult by img
-  // caffe_mul(img_count, 
-  // 	    col_buffer_.cpu_data(),
-  // 	    res_col_buffer_.cpu_data(),
-  // 	    res_col_buffer_.mutable_cpu_data());
-  // // sum down to one channel
-  // for (int c=1; c < conv_in_channels_; ++c) {
-  //   caffe_axpy(emb_count,
-  // 	       Dtype(1),
-  // 	       res_col_buffer_.cpu_data() + c * emb_count,
-  // 	       res_col_buffer_.mutable_cpu_data());
-  // }
-  // Dtype* sum_data = sum_buffer_.mutable_cpu_data();
-  // int mask_size = emb_col_buffer_.count(0,channel_axis_);
-  // // compute dot(top_diff, top_data) and subtract them from the bottom diff
-  // for (int k = 0; k < conv_out_spatial_dim_; ++k) {
-  //   sum_data[k] = caffe_cpu_strided_dot<Dtype>(mask_size,
-  // 	 res_col_buffer_.cpu_data() + k, conv_out_spatial_dim_,
-  // 	 soft_col_buffer_.cpu_data() + k, conv_out_spatial_dim_);
-  // }
-  // // subtraction
-  // caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, mask_size, conv_out_spatial_dim_, 1,
-  // 		-1., sum_multiplier_.cpu_data(), sum_data, 1., res_col_buffer_.mutable_cpu_data());
-  // // elementwise multiplication
-  // caffe_mul(emb_count, res_col_buffer_.cpu_data(), soft_col_buffer_.cpu_data(), res_col_buffer_.mutable_cpu_data());
-  // if (scale_term_) {
-  //   // scale the res
-  //   Dtype* scale_factor = this->blobs_[scale_ind_].get()->mutable_cpu_data();
-  //   caffe_cpu_scale(emb_count, 
-  // 		    -scale_factor[0], 
-  // 		    res_col_buffer_.cpu_data(), 
-  // 		    res_col_buffer_.mutable_cpu_data());
-  // }
-  // // dist2im
-  // if (!is_1x1_ && !bottom_is_im2col_) {
-  //   conv_dist2im_cpu(res_col_buffer_.cpu_data(), 
-  // 		     diff_col_buffer_.cpu_data(), 
-  // 		     emb_diff);
-  // }
-}
-
-template <typename Dtype>
-void BaseConvolutionLayer<Dtype>::normalized_cpu_prep_buffers(const Dtype* weights, 
-	const Dtype* input_img, const Dtype* input_emb) {
-  // const int emb_count = emb_col_buffer_.count();
-  // // get fresh copies of these
-  // conv_im2col_cpu(input_img, col_buffer_.mutable_cpu_data());
-  // conv_im2dist_cpu(input_emb, emb_col_buffer_.mutable_cpu_data(), 
-  // 		   diff_col_buffer_.mutable_cpu_data());
-  // // scale the embs
-  // if (scale_term_) {
-  //   Dtype* scale_factor = this->blobs_[scale_ind_].get()->mutable_cpu_data();
-  //   caffe_cpu_scale(emb_count, -scale_factor[0], 
-  // 		    emb_col_buffer_.cpu_data(), 
-  // 		    emb_col_buffer_.mutable_cpu_data());
-  // }
-  // // softmax...
-  // // We need to subtract the max to avoid numerical issues, compute the exp,
-  // // and then normalize.
-  // Dtype* sum_data = sum_buffer_.mutable_cpu_data();
-  // int mask_size = emb_col_buffer_.count(0,channel_axis_);
-  // // initialize sum_data to the first element in each mask
-  // caffe_copy(conv_out_spatial_dim_, emb_col_buffer_.cpu_data(), sum_data);
-  // for (int j = 0; j < mask_size; j++) {
-  //   for (int k = 0; k < conv_out_spatial_dim_; k++) {
-  //     sum_data[k] = std::max(sum_data[k],
-  // 			       emb_col_buffer_.cpu_data()[j * conv_out_spatial_dim_ + k]);
-  //   }
-  // }
-  // caffe_copy(emb_count, emb_col_buffer_.cpu_data(), soft_col_buffer_.mutable_cpu_data());
-  // // subtraction
-  // caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, mask_size, conv_out_spatial_dim_,
-  // 			1, -1., sum_multiplier_.cpu_data(), sum_data, 1., soft_col_buffer_.mutable_cpu_data());
-  // // exponentiation
-  // caffe_exp<Dtype>(emb_count, soft_col_buffer_.cpu_data(), soft_col_buffer_.mutable_cpu_data());
-  // // sum after exp
-  // caffe_cpu_gemv<Dtype>(CblasTrans, mask_size, conv_out_spatial_dim_, 1.,
-  // 			soft_col_buffer_.cpu_data(), sum_multiplier_.cpu_data(), 0., sum_data);
-  // // division
-  // Dtype* soft_col_buff = soft_col_buffer_.mutable_cpu_data();
-  // for (int j = 0; j < mask_size; j++) {
-  //   caffe_div(conv_out_spatial_dim_, soft_col_buff, sum_data, soft_col_buff);
-  //   soft_col_buff += conv_out_spatial_dim_;
-  // }
-}
-
-template <typename Dtype>
-void BaseConvolutionLayer<Dtype>::backward_cpu_scale(Dtype* scale_diff,
-     const Dtype* weights, const Dtype* input_emb, const Dtype* top_diff) {
-  // // prep col_buffer_ and emb_col_buffer_
-  // const int img_count = res_col_buffer_.count();
-  // const int emb_count = emb_col_buffer_.count();
-  // // gemm into res_col_buffer_
-  // for (int g = 0; g < group_; ++g) {
-  //   caffe_cpu_gemm<Dtype>(CblasTrans, CblasNoTrans, kernel_dim_,
-  // 			  conv_out_spatial_dim_, conv_out_channels_ / group_,
-  // 			  (Dtype)1., weights + weight_offset_ * g, top_diff + output_offset_ * g,
-  // 			  (Dtype)0., res_col_buffer_.mutable_cpu_data() + col_offset_ * g);
-  // }
-  // // mult by img
-  // caffe_mul(img_count, 
-  // 	    col_buffer_.cpu_data(),
-  // 	    res_col_buffer_.cpu_data(),
-  // 	    res_col_buffer_.mutable_cpu_data());
-  // // sum down to one channel
-  // for (int c=1; c < conv_in_channels_; ++c) {
-  //   caffe_axpy(emb_count,
-  // 	       Dtype(1),
-  // 	       res_col_buffer_.cpu_data() + c * emb_count,
-  // 	       res_col_buffer_.mutable_cpu_data());
-  // }
-  // Dtype* sum_data = sum_buffer_.mutable_cpu_data();
-  // int mask_size = emb_col_buffer_.count(0,channel_axis_);
-  // // compute dot(top_diff, top_data) and subtract them from the bottom diff
-  // for (int k = 0; k < conv_out_spatial_dim_; ++k) {
-  //   sum_data[k] = caffe_cpu_strided_dot<Dtype>(mask_size,
-  // 	 res_col_buffer_.cpu_data() + k, conv_out_spatial_dim_,
-  // 	 soft_col_buffer_.cpu_data() + k, conv_out_spatial_dim_);
-  // }
-  // // subtraction
-  // caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, mask_size, conv_out_spatial_dim_, 1,
-  // 		-1., sum_multiplier_.cpu_data(), sum_data, 1., res_col_buffer_.mutable_cpu_data());
-  // // elementwise multiplication
-  // caffe_mul(emb_count, res_col_buffer_.cpu_data(), soft_col_buffer_.cpu_data(), res_col_buffer_.mutable_cpu_data());
-  // // get a fresh embdist
-  // conv_im2dist_cpu(input_emb, emb_col_buffer_.mutable_cpu_data(), 
-  // 		   diff_col_buffer_.mutable_cpu_data());
-  // // mult by embdist
-  // caffe_mul(emb_count,
-  // 	    emb_col_buffer_.cpu_data(),
-  // 	    res_col_buffer_.cpu_data(),
-  // 	    res_col_buffer_.mutable_cpu_data());
-  // // mult by scale sign
-  // caffe_cpu_scale(emb_count, Dtype(-1), res_col_buffer_.cpu_data(), res_col_buffer_.mutable_cpu_data());
-  // // add it up
-  // caffe_cpu_gemv<Dtype>(CblasNoTrans, 1, emb_count, 1.,
-  // 			res_col_buffer_.cpu_data(), sum_multiplier_.cpu_data(), 1., scale_diff);
-}
-
-template <typename Dtype>
-void BaseConvolutionLayer<Dtype>::normalized_backward_cpu_all(const Dtype* top_diff,
-  const Dtype* weights, const Dtype* input_img, const Dtype* input_emb, 
-  Dtype* weight_diff, Dtype* img_diff, Dtype* emb_diff, Dtype* scale_diff) {
-  // doesn't work yet
-}
 
 INSTANTIATE_CLASS(BaseConvolutionLayer);
 

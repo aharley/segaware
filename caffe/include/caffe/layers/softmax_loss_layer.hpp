@@ -105,7 +105,7 @@ class SoftmaxWithLossLayer : public LossLayer<Dtype> {
   /// outputs will be read from valid_count, unless it is -1 in which case
   /// all outputs are assumed to be valid.
   virtual Dtype get_normalizer(
-      LossParameter_NormalizationMode normalization_mode, Dtype batch_weight);
+      LossParameter_NormalizationMode normalization_mode, int valid_count);
 
   /// The internal SoftmaxLayer used to map predictions to a distribution.
   shared_ptr<Layer<Dtype> > softmax_layer_;
@@ -121,10 +121,6 @@ class SoftmaxWithLossLayer : public LossLayer<Dtype> {
   int ignore_label_;
   /// How to normalize the output loss.
   LossParameter_NormalizationMode normalization_;
-  // the weight for different object classes when computing loss
-  vector<Dtype> loss_weights_;
-  // the weight for different object classes when computing loss
-  Blob<Dtype> weights_;
 
   int softmax_axis_, outer_num_, inner_num_;
 };

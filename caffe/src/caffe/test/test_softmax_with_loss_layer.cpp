@@ -22,8 +22,8 @@ class SoftmaxWithLossLayerTest : public MultiDeviceTest<TypeParam> {
 
  protected:
   SoftmaxWithLossLayerTest()
-      : blob_bottom_data_(new Blob<Dtype>(3, 5, 2, 3)),
-        blob_bottom_label_(new Blob<Dtype>(3, 1, 2, 3)),
+      : blob_bottom_data_(new Blob<Dtype>(10, 5, 2, 3)),
+        blob_bottom_label_(new Blob<Dtype>(10, 1, 2, 3)),
         blob_top_loss_(new Blob<Dtype>()) {
     // fill the values
     FillerParameter filler_param;
@@ -99,17 +99,6 @@ TYPED_TEST(SoftmaxWithLossLayerTest, TestGradientUnnormalized) {
   typedef typename TypeParam::Dtype Dtype;
   LayerParameter layer_param;
   layer_param.mutable_loss_param()->set_normalize(false);
-  SoftmaxWithLossLayer<Dtype> layer(layer_param);
-  GradientChecker<Dtype> checker(1e-2, 1e-2, 1701);
-  checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
-      this->blob_top_vec_, 0);
-}
-
-TYPED_TEST(SoftmaxWithLossLayerTest, TestGradientWeights) {
-  typedef typename TypeParam::Dtype Dtype;
-  LayerParameter layer_param;
-  layer_param.mutable_loss_param()->
-    set_weight_source("examples/loss_weights_5class.txt");
   SoftmaxWithLossLayer<Dtype> layer(layer_param);
   GradientChecker<Dtype> checker(1e-2, 1e-2, 1701);
   checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,

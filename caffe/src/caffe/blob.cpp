@@ -6,8 +6,6 @@
 #include "caffe/syncedmem.hpp"
 #include "caffe/util/math_functions.hpp"
 
-#include "matio.h"
-
 namespace caffe {
 
 template <typename Dtype>
@@ -21,12 +19,26 @@ void Blob<Dtype>::Reshape(const int num, const int channels, const int height,
   Reshape(shape);
 }
 
+// SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
+template <typename Dtype>
+void Blob<Dtype>::RemoveBoth() {
+    if(_is_data_initialized) data_.reset(new SyncedMemory(0 * sizeof(Dtype)));
+    if(_is_diff_initialized) diff_.reset(new SyncedMemory(0 * sizeof(Dtype)));
+    for (int i = 0; i < shape_.size(); ++i) {
+        shape_[i] = 0;
+    }
+    capacity_ = 0;
+    _is_data_initialized=0;
+    _is_diff_initialized=0;
+}
+// SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
+
 template <typename Dtype>
 void Blob<Dtype>::Reshape(const vector<int>& shape) {
   CHECK_LE(shape.size(), kMaxBlobAxes);
   count_ = 1;
   shape_.resize(shape.size());
-  if (!shape_data_ || shape_data_->size() < shape.size() * sizeof(int)) {
+  if (!shape_data_|| shape_data_->size() < shape.size() * sizeof(int)) {
     shape_data_.reset(new SyncedMemory(shape.size() * sizeof(int)));
   }
   int* shape_data = static_cast<int*>(shape_data_->mutable_cpu_data());
@@ -40,7 +52,13 @@ void Blob<Dtype>::Reshape(const vector<int>& shape) {
   if (count_ > capacity_) {
     capacity_ = count_;
     data_.reset(new SyncedMemory(capacity_ * sizeof(Dtype)));
+    // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
+    /* <comment> */
     diff_.reset(new SyncedMemory(capacity_ * sizeof(Dtype)));
+    /* </comment> */
+    _is_data_initialized=1;
+    _is_diff_initialized=1;
+    // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
   }
 }
 
@@ -71,6 +89,10 @@ template <typename Dtype>
 Blob<Dtype>::Blob(const vector<int>& shape)
   // capacity_ must be initialized before calling Reshape
   : capacity_(0) {
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
+  _is_data_initialized=0;
+  _is_diff_initialized=0;
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
   Reshape(shape);
 }
 
@@ -79,6 +101,68 @@ const int* Blob<Dtype>::gpu_shape() const {
   CHECK(shape_data_);
   return (const int*)shape_data_->gpu_data();
 }
+
+// jay add
+template <typename Dtype>
+const Dtype* Blob<Dtype>::cpu_data_at(const int n, const int c, const int h, const int w) const {
+  CHECK(data_);
+  return (const Dtype*)data_->cpu_data() + offset(n, c, h, w);
+}
+
+template <typename Dtype>
+const Dtype* Blob<Dtype>::gpu_data_at(const int n, const int c, const int h, const int w) const {
+  CHECK(data_);
+  return (const Dtype*)data_->gpu_data() + offset(n, c, h, w);
+}
+
+template <typename Dtype>
+const Dtype* Blob<Dtype>::cpu_diff_at(const int n, const int c, const int h, const int w) const {
+  CHECK(diff_);
+  return (const Dtype*)diff_->cpu_data() + offset(n, c, h, w);
+}
+
+template <typename Dtype>
+const Dtype* Blob<Dtype>::gpu_diff_at(const int n, const int c, const int h, const int w) const {
+  CHECK(diff_);
+  return (const Dtype*)diff_->gpu_data() + offset(n, c, h, w);
+}
+
+template <typename Dtype>
+Dtype* Blob<Dtype>::mutable_cpu_data_at(const int n, const int c, const int h, const int w) {
+  CHECK(data_);
+  return static_cast<Dtype*>(data_->mutable_cpu_data()) + offset(n, c, h, w);
+}
+
+template <typename Dtype>
+Dtype* Blob<Dtype>::mutable_gpu_data_at(const int n, const int c, const int h, const int w) {
+  CHECK(data_);
+  return static_cast<Dtype*>(data_->mutable_gpu_data()) + offset(n, c, h, w);
+}
+
+template <typename Dtype>
+Dtype* Blob<Dtype>::mutable_cpu_diff_at(const int n, const int c, const int h, const int w) {
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
+  if(_is_diff_initialized==0){
+      diff_.reset(new SyncedMemory(capacity_*sizeof(Dtype)));
+      _is_diff_initialized=1;
+  }
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
+  CHECK(diff_);
+  return static_cast<Dtype*>(diff_->mutable_cpu_data()) + offset(n, c, h, w);
+}
+
+template <typename Dtype>
+Dtype* Blob<Dtype>::mutable_gpu_diff_at(const int n, const int c, const int h, const int w) {
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
+  if(_is_diff_initialized==0){
+      diff_.reset(new SyncedMemory(capacity_*sizeof(Dtype)));
+      _is_diff_initialized=1;
+  }
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
+  CHECK(diff_);
+  return static_cast<Dtype*>(diff_->mutable_gpu_data()) + offset(n, c, h, w);
+}
+// end jay add
 
 template <typename Dtype>
 const Dtype* Blob<Dtype>::cpu_data() const {
@@ -124,12 +208,24 @@ Dtype* Blob<Dtype>::mutable_gpu_data() {
 
 template <typename Dtype>
 Dtype* Blob<Dtype>::mutable_cpu_diff() {
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
+  if(_is_diff_initialized==0){
+      diff_.reset(new SyncedMemory(capacity_*sizeof(Dtype)));
+      _is_diff_initialized=1;
+  }
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
   CHECK(diff_);
   return static_cast<Dtype*>(diff_->mutable_cpu_data());
 }
 
 template <typename Dtype>
 Dtype* Blob<Dtype>::mutable_gpu_diff() {
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
+  if(_is_diff_initialized==0){
+      diff_.reset(new SyncedMemory(capacity_*sizeof(Dtype)));
+      _is_diff_initialized=1;
+  }
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
   CHECK(diff_);
   return static_cast<Dtype*>(diff_->mutable_gpu_data());
 }
@@ -142,6 +238,12 @@ void Blob<Dtype>::ShareData(const Blob& other) {
 
 template <typename Dtype>
 void Blob<Dtype>::ShareDiff(const Blob& other) {
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <BEGIN>
+  if(_is_diff_initialized==0){
+      diff_.reset(new SyncedMemory(capacity_*sizeof(Dtype)));
+      _is_diff_initialized=1;
+  }
+  // SID MEMORY COMPACT LIGHT WEIGHT CAFFE <END>
   CHECK_EQ(count_, other.count());
   diff_ = other.diff();
 }
@@ -534,49 +636,6 @@ void Blob<float>::ToProto(BlobProto* proto, bool write_diff) const {
     }
   }
 }
-
-template <typename Dtype> enum matio_types matio_type_map();
-template <> enum matio_types matio_type_map<float>() { return MAT_T_SINGLE; }
-template <> enum matio_types matio_type_map<double>() { return MAT_T_DOUBLE; }
-template <> enum matio_types matio_type_map<int>() { return MAT_T_INT32; }
-template <> enum matio_types matio_type_map<unsigned int>() { return MAT_T_UINT32; }
-
-template <typename Dtype> enum matio_classes matio_class_map();
-template <> enum matio_classes matio_class_map<float>() { return MAT_C_SINGLE; }
-template <> enum matio_classes matio_class_map<double>() { return MAT_C_DOUBLE; }
-template <> enum matio_classes matio_class_map<int>() { return MAT_C_INT32; }
-template <> enum matio_classes matio_class_map<unsigned int>() { return MAT_C_UINT32; }
-
-template <typename Dtype>
-void Blob<Dtype>::ToMat(const char *fname, bool write_diff) {
-  mat_t *matfp;
-  matfp = Mat_Create(fname, 0);
-  //matfp = Mat_CreateVer(fname, 0, MAT_FT_MAT73);
-  CHECK(matfp) << "Error creating MAT file " << fname;
-  size_t dims[4];
-  dims[0] = shape_[3]; dims[1] = shape_[2]; dims[2] = shape_[1]; dims[3] = shape_[0];
-  matvar_t *matvar;
-  // save data
-  {
-    matvar = Mat_VarCreate("data", matio_class_map<Dtype>(), matio_type_map<Dtype>(),
-			   4, dims, mutable_cpu_data(), 0);
-    CHECK(matvar) << "Error creating 'data' variable";
-    CHECK_EQ(Mat_VarWrite(matfp, matvar, MAT_COMPRESSION_NONE), 0) 
-      << "Error saving array 'data' into MAT file " << fname;
-    Mat_VarFree(matvar);
-  }
-  // save diff
-  if (write_diff) {
-    matvar = Mat_VarCreate("diff", matio_class_map<Dtype>(), matio_type_map<Dtype>(),
-			   4, dims, mutable_cpu_diff(), 0);
-    CHECK(matvar) << "Error creating 'diff' variable";
-    CHECK_EQ(Mat_VarWrite(matfp, matvar, MAT_COMPRESSION_NONE), 0)
-      << "Error saving array 'diff' into MAT file " << fname;
-    Mat_VarFree(matvar);
-  }
-  Mat_Close(matfp);
-}
-
 
 INSTANTIATE_CLASS(Blob);
 template class Blob<int>;

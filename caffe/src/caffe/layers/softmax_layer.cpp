@@ -21,19 +21,6 @@ void SoftmaxLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   vector<int> scale_dims = bottom[0]->shape();
   scale_dims[softmax_axis_] = 1;
   scale_.Reshape(scale_dims);
-  // LOG(ERROR) << "bottom info: " 
-  // 	     << "num=" << bottom[0]->num() << ", "
-  // 	     << "channels=" << bottom[0]->channels() << ", "
-  // 	     << "height=" << bottom[0]->height() << ", "
-  // 	     << "width=" << bottom[0]->width() << ", "
-  // 	     << "top info: " 
-  // 	     << "num=" << top[0]->num() << ", "
-  // 	     << "channels=" << top[0]->channels() << ", "
-  // 	     << "height=" << top[0]->height() << ", "
-  // 	     << "width=" << top[0]->width() << ", "
-  // 	     << "and... " 
-  // 	     << "outer_num_=" << outer_num_ << ", "
-  // 	     << "inner_num_=" << inner_num_ << ", ";
 }
 
 template <typename Dtype>

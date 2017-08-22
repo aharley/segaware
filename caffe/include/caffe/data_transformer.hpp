@@ -75,21 +75,6 @@ class DataTransformer {
    *    set_cpu_data() is used. See image_data_layer.cpp for an example.
    */
   void Transform(const cv::Mat& cv_img, Blob<Dtype>* transformed_blob);
-
-  /**
-   * @brief Applies the transformation defined in the data layer's
-   * transform_param block to cv::Mat that contains data and labels.
-   *
-   * @param cv_img_label
-   *    cv::Mat containing the data and labels to be transformed.
-   * @param transformed_data_blob
-   *    This is destination blob for the data.
-   * @param transformed_label_blob
-   *    This is destination blob for the labels.
-   */
-  void TransformBoth(const std::vector<cv::Mat>& cv_img_label,
-		     Blob<Dtype>* transformed_data_blob, 
-		     Blob<Dtype>* transformed_label_blob);
 #endif  // USE_OPENCV
 
   /**
@@ -104,6 +89,11 @@ class DataTransformer {
    *    input blob. It can be part of top blob's data.
    */
   void Transform(Blob<Dtype>* input_blob, Blob<Dtype>* transformed_blob);
+
+  void TransformImgAndSeg(const std::vector<cv::Mat>& cv_img_seg,
+    Blob<Dtype>* transformed_data_blob, Blob<Dtype>* transformed_label_blob,
+    const int ignore_label);
+
 
   /**
    * @brief Infers the shape of transformed_blob will have when
@@ -152,6 +142,7 @@ class DataTransformer {
    *    A uniformly random integer value from ({0, 1, ..., n-1}).
    */
   virtual int Rand(int n);
+  virtual float Uniform(const float min, const float max);
 
   void Transform(const Datum& datum, Dtype* transformed_data);
   // Tranformation parameters
@@ -162,6 +153,7 @@ class DataTransformer {
   Phase phase_;
   Blob<Dtype> data_mean_;
   vector<Dtype> mean_values_;
+  vector<Dtype> scale_factors_;
 };
 
 }  // namespace caffe

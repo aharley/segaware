@@ -319,8 +319,7 @@ void NormConvLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   in_spatial_dim_ = bottom[0]->count(first_spatial_axis);
   out_spatial_dim_ = top[0]->count(first_spatial_axis);
   // bias and scale and normalization share this buffer. it's just a vector of ones.
-  // int sum_mult_size = out_spatial_dim_;
-  int sum_mult_size = emb_col_buffer_.count();
+  int sum_mult_size = out_spatial_dim_;
   if (scale_term_)
     sum_mult_size = res_col_buffer_.count();
   vector<int> sum_multiplier_shape(1, sum_mult_size);
@@ -496,9 +495,8 @@ void NormConvLayer<Dtype>::prep_buffers_cpu(const Dtype* weights,
   conv_im2col_cpu(input_img, col_buffer_.mutable_cpu_data());
   conv_im2dist_cpu(input_emb, emb_col_buffer_.mutable_cpu_data(), 
 		   diff_col_buffer_.mutable_cpu_data());
-  // LOG(ERROR) << "-----";
   // for (int i=0;i<emb_count;i++)
-  //   LOG(ERROR) << "im2dist emb[" << i << "] = " << emb_col_buffer_.cpu_data()[i];
+  //   LOG(ERROR) << "emb[" << i << "] = " << emb_col_buffer_.cpu_data()[i];
   // scale the embs
   if (scale_term_) {
     Dtype* scale_factor = this->blobs_[scale_ind_].get()->mutable_cpu_data();
@@ -506,91 +504,40 @@ void NormConvLayer<Dtype>::prep_buffers_cpu(const Dtype* weights,
 		    emb_col_buffer_.cpu_data(), 
 		    emb_col_buffer_.mutable_cpu_data());
   }
-  // LOG(ERROR) << "-----";
-  // for (int i=0;i<emb_count;i++)
-  //   LOG(ERROR) << "scaled emb[" << i << "] = " << emb_col_buffer_.cpu_data()[i];
-
   // softmax...
-  caffe_copy(emb_count, emb_col_buffer_.cpu_data(), soft_col_buffer_.mutable_cpu_data());
   // We need to subtract the max to avoid numerical issues, compute the exp,
   // and then normalize.
   Dtype* sum_data = sum_buffer_.mutable_cpu_data();
   int mask_size = emb_col_buffer_.count(0,channel_axis_);
-  // we need to find the max of each mask. (there one mask per conv_out_spatial_dim_)
   // initialize sum_data to the first element in each mask
   caffe_copy(conv_out_spatial_dim_, emb_col_buffer_.cpu_data(), sum_data);
-  // LOG(ERROR) << "-----";
-  // for (int i=0;i<conv_out_spatial_dim_;i++)
-  //   LOG(ERROR) << "init sum_data[" << i << "] = " << sum_data[i];
   for (int j = 0; j < mask_size; j++) {
     for (int k = 0; k < conv_out_spatial_dim_; k++) {
       sum_data[k] = std::max(sum_data[k],
-			     emb_col_buffer_.cpu_data()[j * conv_out_spatial_dim_ + k]);
+  			       emb_col_buffer_.cpu_data()[j * conv_out_spatial_dim_ + k]);
     }
   }
-  // LOG(ERROR) << "-----";
-  // for (int i=0;i<conv_out_spatial_dim_;i++)
-  //   LOG(ERROR) << "final sum_data[" << i << "] = " << sum_data[i];
-
+  // for (int i=0;i<emb_count;i++)
+  //   LOG(ERROR) << "emb[" << i << "] = " << emb_col_buffer_.cpu_data()[i];
+  caffe_copy(emb_count, emb_col_buffer_.cpu_data(), soft_col_buffer_.mutable_cpu_data());
   // for (int i=0;i<emb_count;i++)
   //   LOG(ERROR) << "soft[" << i << "] = " << soft_col_buffer_.cpu_data()[i];
   // for (int i=0;i<sum_multiplier_.count();i++)
-  //   LOG(ERROR) << "sum_multiplier[" << i << "] = " << sum_multiplier_.cpu_data()[i];
-
-  // // let's init to zeros, just in case.
-  // caffe_set(emb_count, Dtype(0), soft_col_buffer_.mutable_cpu_data());
-
-  // LOG(ERROR) << "-----";
-  // for (int i=0;i<emb_count;i++)
-  //   LOG(ERROR) << "soft init[" << i << "] = " << soft_col_buffer_.cpu_data()[i];
-
-  // LOG(ERROR) << "emb_count = " << emb_count << ", mask_size = " << mask_size << "conv_out_spatial_dim_ = " << conv_out_spatial_dim_;
+  //   LOG(ERROR) << "sum[" << i << "] = " << sum_multiplier_.cpu_data()[i];
   // subtraction
   caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, mask_size, conv_out_spatial_dim_,
   			1, -1., sum_multiplier_.cpu_data(), sum_data, 1., soft_col_buffer_.mutable_cpu_data());
-
-  // caffe_copy(inner_num_, bottom_data + i * dim, scale_data);
-  // for (int j = 0; j < channels; j++) {
-  //   for (int k = 0; k < inner_num_; k++) {
-  //     scale_data[k] = std::max(scale_data[k],
-  // 			       bottom_data[i * dim + j * inner_num_ + k]);
-  //   }
-  // }
-  // caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, channels, inner_num_,
-  // 			1, -1., sum_multiplier_.cpu_data(), scale_data, 1., top_data);
-
-  // LOG(ERROR) << "-----";
-  // for (int i=0;i<emb_count;i++)
-  //   LOG(ERROR) << "emb sub[" << i << "] = " << emb_col_buffer_.cpu_data()[i];
-  // LOG(ERROR) << "-----";
-  // for (int i=0;i<emb_count;i++)
-  //   LOG(ERROR) << "soft sub[" << i << "] = " << soft_col_buffer_.cpu_data()[i];
-
   // exponentiation
   caffe_exp<Dtype>(emb_count, soft_col_buffer_.cpu_data(), soft_col_buffer_.mutable_cpu_data());
-
-  // LOG(ERROR) << "-----";
-  // for (int i=0;i<emb_count;i++)
-  //   LOG(ERROR) << "soft exp[" << i << "] = " << soft_col_buffer_.cpu_data()[i];
   // sum after exp
   caffe_cpu_gemv<Dtype>(CblasTrans, mask_size, conv_out_spatial_dim_, 1.,
   			soft_col_buffer_.cpu_data(), sum_multiplier_.cpu_data(), 0., sum_data);
-
-  // LOG(ERROR) << "-----";
-  // for (int i=0;i<emb_count;i++)
-  //   LOG(ERROR) << "soft gemv[" << i << "] = " << soft_col_buffer_.cpu_data()[i];
   // division
   Dtype* soft_col_buff = soft_col_buffer_.mutable_cpu_data();
   for (int j = 0; j < mask_size; j++) {
     caffe_div(conv_out_spatial_dim_, soft_col_buff, sum_data, soft_col_buff);
     soft_col_buff += conv_out_spatial_dim_;
   }
-
-  // LOG(ERROR) << "-----";
-  // for (int i=0;i<emb_count;i++)
-  //   LOG(ERROR) << "soft div[" << i << "] = " << soft_col_buffer_.cpu_data()[i];
-
-  // LOG(ERROR) << "-----";
 }
 
 template <typename Dtype>
@@ -659,41 +606,11 @@ void NormConvLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   const Dtype* weight = this->blobs_[0]->cpu_data();
   const Dtype* bottom_img = bottom[0]->cpu_data();
   const Dtype* bottom_emb = bottom[1]->cpu_data();
-
-
-  // LOG(ERROR) << "----------------------";
-  // LOG(ERROR) << "----------------------";
-  // const Dtype* botimg = bottom[0]->cpu_data();
-  // for (int i=0; i < bottom[0]->count(); i++){
-  //   LOG(ERROR) << "bottom_img[" << i << "] = " << botimg[i];
-  // }
-  // LOG(ERROR) << "----------------------";
-  // const Dtype* botemb = bottom[1]->cpu_data();
-  // for (int i=0; i < bottom[1]->count(); i++){
-  //   LOG(ERROR) << "bottom_emb[" << i << "] = " << botemb[i];
-  // }
-  // LOG(ERROR) << "----------------------";
-  // for (int i=0; i < this->blobs_[0]->count(); i++){
-  //   LOG(ERROR) << "weight[" << i << "] = " << weight[i];
-  // }
-  // LOG(ERROR) << "----------------------";
-  // for (int i=0; i < this->blobs_[1]->count(); i++){
-  //   LOG(ERROR) << "bias[" << i << "] = " << this->blobs_[1]->cpu_data()[i];
-  // }
-  // LOG(ERROR) << "----------------------";
-  // if (scale_term_)
-  //   for (int i=0; i < this->blobs_[2]->count(); i++){
-  //     LOG(ERROR) << "scale[" << i << "] = " << this->blobs_[2]->cpu_data()[i];
-  //   }
-  // else 
-  //   LOG(ERROR) << "no scale term!";
-  // LOG(ERROR) << "----------------------";
-
   Dtype* top_data = top[0]->mutable_cpu_data();
   for (int n = 0; n < this->num_; ++n) {
     this->prep_buffers_cpu(weight, 
-			   bottom_img + n * this->bottom_dim_,
-			   bottom_emb + n * this->emb_bottom_dim_);
+  				bottom_img + n * this->bottom_dim_,
+  				bottom_emb + n * this->emb_bottom_dim_);
     this->norm_forward_cpu_gemm(weight,
   				top_data + n * this->top_dim_);
     if (this->bias_term_) {
@@ -701,13 +618,6 @@ void NormConvLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       this->forward_cpu_bias(top_data + n * this->top_dim_, bias);
     }
   }
-  
-  // for (int i=0; i < top[0]->count(); i++){
-  //   LOG(ERROR) << "top_data[" << i << "] = " << top_data[i];
-  // }
-  // LOG(ERROR) << "----------------------";
-  // LOG(ERROR) << "----------------------";
-
 }
 
 template <typename Dtype>

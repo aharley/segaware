@@ -16,18 +16,22 @@
 #           161;          81;          41;          21;  11
 # 
 
-name: "segaware-all-largeFOV"
+name: "vgg"
 
 layer {
   name: "data"
-  type: "ImageData"
+  type: "TwoImageData"
   top: "data"
   top: "label"
   image_data_param {
-    root_folder: "/opt/home/aharley/datasets/VOC2012"
+    root_folder: "/mnt/data1/kidd/segaware/dataset/VOC2012/VOCtest"
     source: "segaware/list/voc_test.txt"
     batch_size: 1
     shuffle: false
+  }
+  two_image_data_param {
+    first_is_color: true
+    second_is_color: false
   }
   transform_param {
     mean_value: 104.008
@@ -311,7 +315,7 @@ layer {
   top: "conv1_1"
   name: "conv1_1"
   type: "Convolution"
-  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  param { lr_mult:  decay_mult: 1 } param { lr_mult:  decay_mult: 0 }
   convolution_param {
     num_output: 64 kernel_size: 3 pad: 1
     bottom_is_im2col: true
@@ -346,7 +350,7 @@ layer {
   top: "conv1_2"
   name: "conv1_2"
   type: "Convolution"
-  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  param { lr_mult:  decay_mult: 1 } param { lr_mult:  decay_mult: 0 }
   convolution_param {
     num_output: 64 kernel_size: 3 pad: 1
     bottom_is_im2col: true
@@ -440,7 +444,7 @@ layer {
   top: "conv2_1"
   name: "conv2_1"
   type: "Convolution"
-  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  param { lr_mult:  decay_mult: 1 } param { lr_mult:  decay_mult: 0 }
   convolution_param {
     num_output: 128 kernel_size: 3 pad: 1
     bottom_is_im2col: true
@@ -474,7 +478,7 @@ layer {
   top: "conv2_2"
   name: "conv2_2"
   type: "Convolution"
-  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  param { lr_mult:  decay_mult: 1 } param { lr_mult:  decay_mult: 0 }
   convolution_param {
     num_output: 128 kernel_size: 3 pad: 1
     bottom_is_im2col: true
@@ -568,7 +572,7 @@ layer {
   top: "conv3_1"
   name: "conv3_1"
   type: "Convolution"
-  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  param { lr_mult:  decay_mult: 1 } param { lr_mult:  decay_mult: 0 }
   convolution_param {
     num_output: 256 kernel_size: 3 pad: 1
     bottom_is_im2col: true
@@ -602,7 +606,7 @@ layer {
   top: "conv3_2"
   name: "conv3_2"
   type: "Convolution"
-  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  param { lr_mult:  decay_mult: 1 } param { lr_mult:  decay_mult: 0 }
   convolution_param {
     num_output: 256 kernel_size: 3 pad: 1
     bottom_is_im2col: true
@@ -636,7 +640,7 @@ layer {
   top: "conv3_3"
   name: "conv3_3"
   type: "Convolution"
-  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  param { lr_mult:  decay_mult: 1 } param { lr_mult:  decay_mult: 0 }
   convolution_param {
     num_output: 256 kernel_size: 3 pad: 1
     bottom_is_im2col: true
@@ -731,7 +735,7 @@ layer {
   top: "conv4_1"
   name: "conv4_1"
   type: "Convolution"
-  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  param { lr_mult:  decay_mult: 1 } param { lr_mult:  decay_mult: 0 }
   convolution_param {
     num_output: 512 kernel_size: 3 pad: 1
     bottom_is_im2col: true
@@ -765,7 +769,7 @@ layer {
   top: "conv4_2"
   name: "conv4_2"
   type: "Convolution"
-  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  param { lr_mult:  decay_mult: 1 } param { lr_mult:  decay_mult: 0 }
   convolution_param {
     num_output: 512 kernel_size: 3 pad: 1
     bottom_is_im2col: true
@@ -799,7 +803,7 @@ layer {
   top: "conv4_3"
   name: "conv4_3"
   type: "Convolution"
-  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  param { lr_mult:  decay_mult: 1 } param { lr_mult:  decay_mult: 0 }
   convolution_param {
     num_output: 512 kernel_size: 3 pad: 1
     bottom_is_im2col: true
@@ -880,7 +884,7 @@ layer {
   top: "conv5_1"
   name: "conv5_1"
   type: "Convolution"
-  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  param { lr_mult:  decay_mult: 1 } param { lr_mult:  decay_mult: 0 }
   convolution_param {
     num_output: 512 kernel_size: 3 pad: 2 dilation: 2
     bottom_is_im2col: true
@@ -914,7 +918,7 @@ layer {
   top: "conv5_2"
   name: "conv5_2"
   type: "Convolution"
-  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  param { lr_mult:  decay_mult: 1 } param { lr_mult:  decay_mult: 0 }
   convolution_param {
     num_output: 512 kernel_size: 3 pad: 2 dilation: 2
     bottom_is_im2col: true
@@ -948,7 +952,7 @@ layer {
   top: "conv5_3"
   name: "conv5_3"
   type: "Convolution"
-  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0 }
+  param { lr_mult:  decay_mult: 1 } param { lr_mult:  decay_mult: 0 }
   convolution_param {
     num_output: 512 kernel_size: 3 pad: 2 dilation: 2
     bottom_is_im2col: true
@@ -1119,7 +1123,7 @@ layer {
   type: "MatWrite"
   bottom: "fc8_interp"
   mat_write_param {
-    prefix: "segaware/features/segaware-all-largeFOV/voc_test/fc8/"
+    prefix: "segaware/features/vgg/voc_test/fc8/"
     source: "segaware/list/voc_test_id.txt"
     strip: 0
     period: 1

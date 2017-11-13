@@ -16,28 +16,33 @@
 #           161;          81;          41;          21;  11
 # 
 
-name: "segaware-all-largeFOV"
+name: "vgg"
 
 layer {
   name: "data"
-  type: "TwoImageData"
+  type: "ImageSegData"
   top: "data"
   top: "label"
+  top: "data_dim"
+  include {
+    phase: TEST
+  }
   image_data_param {
-    root_folder: "/opt/home/aharley/datasets/VOC2012"
-    source: "segaware/list/voc_val.txt"
+    root_folder: "/mnt/data1/kidd/segaware/dataset/VOC2012/VOCtrainval"
+    source: "/mnt/data1/kidd/segaware/segaware/list/voc_val.txt"
     batch_size: 1
     shuffle: false
+    label_type: NONE
   }
-  two_image_data_param {
-    first_is_color: true
-    second_is_color: false
-  }
+#two_image_data_param {
+#   first_is_color: true
+#   second_is_color: false
+# }
   transform_param {
     mean_value: 104.008
     mean_value: 116.669
     mean_value: 122.675
-    crop_size: 513
+    crop_size: 321
     mirror: false
   }
 }
@@ -216,8 +221,8 @@ layer {
   name: "emb22_resized"
   top: "emb22_resized"
   interp_param {
-    height: 513
-    width: 513
+    height: 321
+    width: 321
   }
 }
 layer {
@@ -226,8 +231,8 @@ layer {
   name: "emb33_resized"
   top: "emb33_resized"
   interp_param {
-    height: 513
-    width: 513
+    height: 321
+    width: 321
   }
 }
 # Concat, and weight
@@ -1123,14 +1128,15 @@ layer {
   type: "MatWrite"
   bottom: "fc8_interp"
   mat_write_param {
-    prefix: "segaware/features/segaware-all-largeFOV/voc_val/fc8/"
-    source: "segaware/list/voc_val_id.txt"
+    prefix: "/mnt/data1/kidd/segaware/segaware/features/vgg/voc_val/fc8/"
+    source: "/mnt/data1/kidd/segaware/segaware/list/voc_val_id.txt"
     strip: 0
     period: 1
   }
 }
 layer {
   bottom: "label"
+  bottom: "data_dim"
   name: "silence"
   type: "Silence"
 }

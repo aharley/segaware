@@ -1,7 +1,7 @@
 name: "${NET_ID}"
 layer {
   name: "data"
-  type: "TwoImageData"
+  type: "ImageSegData"
   top: "data"
   top: "label"
   image_data_param {
@@ -10,10 +10,10 @@ layer {
     batch_size: ${BATCH_SIZE}
     shuffle: true
   }
-  two_image_data_param {
-    first_is_color: true
-    second_is_color: false
-  }
+#two_image_data_param {
+#    first_is_color: true
+#    second_is_color: false
+#  }
   transform_param {
     mean_value: 104.008
     mean_value: 116.669

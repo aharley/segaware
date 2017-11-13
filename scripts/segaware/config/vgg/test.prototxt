@@ -20,19 +20,24 @@ name: "${NET_ID}"
 
 layer {
   name: "data"
-  type: "TwoImageData"
+  type: "ImageSegData"
   top: "data"
   top: "label"
+  top: "data_dim"
+  include {
+    phase: TEST
+  }
   image_data_param {
     root_folder: "${DATA_ROOT}"
     source: "${EXP}/list/${TEST_SET}.txt"
     batch_size: ${BATCH_SIZE}
     shuffle: false
+    label_type: NONE
   }
-  two_image_data_param {
-    first_is_color: true
-    second_is_color: false
-  }
+#two_image_data_param {
+#   first_is_color: true
+#   second_is_color: false
+# }
   transform_param {
     mean_value: 104.008
     mean_value: 116.669
@@ -1131,6 +1136,7 @@ layer {
 }
 layer {
   bottom: "label"
+  bottom: "data_dim"
   name: "silence"
   type: "Silence"
 }

@@ -16,23 +16,28 @@
 #           161;          81;          41;          21;  11
 # 
 
-name: "segaware-all-largeFOV"
+name: "vgg"
 
 layer {
   name: "data"
-  type: "TwoImageData"
+  type: "ImageSegData"
   top: "data"
   top: "label"
+  top: "data_dim"
+  include {
+    phase: TRAIN
+  }
   image_data_param {
-    root_folder: "/opt/home/aharley/datasets/VOC2012"
-    source: "segaware/list/voc_train_aug.txt"
+    root_folder: "/mnt/data1/kidd/segaware/dataset/VOC2012/VOCtrainval"
+    source: "/mnt/data1/kidd/segaware/segaware/list/voc_train_aug.txt"
     batch_size: 1
     shuffle: true
+    label_type: PIXEL
   }
-  two_image_data_param {
-    first_is_color: true
-    second_is_color: false
-  }
+#two_image_data_param {
+#   first_is_color: true
+#   second_is_color: false
+# }
   transform_param {
     mean_value: 104.008
     mean_value: 116.669
@@ -1126,4 +1131,9 @@ layer {
   loss_param {
     ignore_label: 255
   }
+}
+layer {
+    name: "silence"
+    type: "Silence"
+    bottom: "data_dim"
 }

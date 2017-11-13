@@ -1,13 +1,13 @@
-name: "embs_31_L1_coco"
+name: "embs"
 layer {
   name: "data"
   type: "TwoImageData"
   top: "data"
   top: "label"
   image_data_param {
-    root_folder: "/opt/home/aharley/datasets/VOC2012"
-    source: "segaware/list/voc_val.txt"
-    batch_size: 1
+    root_folder: "/mnt/data1/kidd/segaware/dataset/VOC2012/VOCtrainval"
+    source: "/mnt/data1/kidd/segaware/segaware/list/voc_val.txt"
+    batch_size: 15
     shuffle: false
   }
   two_image_data_param {
@@ -18,7 +18,7 @@ layer {
     mean_value: 104.008
     mean_value: 116.669
     mean_value: 122.675
-    crop_size: 513
+    crop_size: 161
     mirror: false
   }
 }
@@ -158,8 +158,8 @@ layer {
   name: "conv21_resized"
   top: "conv21_resized"
   interp_param {
-    height: 513
-    width: 513
+    height: 161
+    width: 161
   }
 }
 layer {
@@ -168,8 +168,8 @@ layer {
   name: "conv22_resized"
   top: "conv22_resized"
   interp_param {
-    height: 513
-    width: 513
+    height: 161
+    width: 161
   }
 }
 layer {
@@ -178,8 +178,8 @@ layer {
   name: "conv31_resized"
   top: "conv31_resized"
   interp_param {
-    height: 513
-    width: 513
+    height: 161
+    width: 161
   }
 }
 # Concat, and weight
@@ -214,7 +214,7 @@ layer {
   name: "parity"
   type: "Im2parity"
   convolution_param {
-    kernel_size: 5 pad: 6 dilation: 3
+    kernel_size: 3 pad: 1 dilation: 1
     stride: 1
   }
 }
@@ -224,7 +224,7 @@ layer {
   name: "weighted_avg_dist"
   type: "Im2dist"
   convolution_param {
-    kernel_size: 5 pad: 6 dilation: 3
+    kernel_size: 3 pad: 1 dilation: 1
     stride: 1
   }
   im2dist_param {
@@ -238,7 +238,7 @@ layer {
   bottom: "parity"
   top: "loss_avg"
   convolution_param {
-    kernel_size: 5 pad: 6 dilation: 3
+    kernel_size: 3 pad: 1 dilation: 1
     stride: 1
   }
   dist_loss_param {
@@ -252,8 +252,8 @@ layer {
   type: "MatWrite"
   bottom: "weighted_avg"
   mat_write_param {
-    prefix: "segaware/features/embs_31_L1_coco/voc_val/fc8/"
-    source: "segaware/list/voc_val_id.txt"
+    prefix: "/mnt/data1/kidd/segaware/segaware/features/embs/voc_val/fc8/"
+    source: "/mnt/data1/kidd/segaware/segaware/list/voc_val_id.txt"
     strip: 0
     period: 1
   }
